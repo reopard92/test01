@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODE NAME: 49B</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="TENNIS">
+    <link rel="apple-touch-icon" href="./icon.png">
+    
+    <!-- External Libs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Link to external CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="loadingScreen">
+    <div class="loader-text">SYSTEM INITIALIZING...</div>
+    <div class="loader-bar"></div>
+</div>
+
+<div id="sideMenu" class="side-menu-overlay" onclick="closeSideMenu(event)">
+    <div class="side-menu-content">
+        <div class="menu-item active" onclick="selectAppMode('tennis')">🎾 TENNIS</div>
+        <div class="menu-item" onclick="selectAppMode('game')">🎮 GAME</div>
+        <div class="menu-item" onclick="showMyPage()">👤 MY PAGE</div>
+    </div>
+</div>
+
+<div class="container">
+    <header class="app-header">
+        <div id="currentUserDisplay" class="user-status-display" onclick="showMyPage()">GUEST</div>
+        <div class="header-btn left" onclick="manualReload()">↻</div>
+        <h1 id="pageTitle">MATCH INPUT</h1>
+        <div class="subtitle">DEEP SPACE INTEGRATED SYSTEM</div>
+        <div class="header-btn right" id="menuToggleBtn" onclick="toggleSideMenu()">≡</div>
+    </header>
+    
+    <!-- TOP SECTION -->
+    <div id="view-top" class="view-section">
+        <div class="section-title">WEATHER FORECAST</div>
+        <!-- CSSで高さを確保するためのプレースホルダー（empty-slot）を含む -->
+        <div id="weather-forecast" class="weather-container">
+            <div class="weather-card"><div class="spinning">❖</div></div>
+            <div class="weather-card empty-slot"></div>
+            <div class="weather-card empty-slot"></div>
+            <div class="weather-card empty-slot"></div>
+            <div class="weather-card empty-slot"></div>
+        </div>
+
+        <div class="section-title">COURT NAVIGATION</div>
+        <div class="sector-filter-area" style="text-align:center; margin-bottom:20px;">
+            <select id="mapSectorSelect" class="sector-select" onchange="renderMapInfo(this.value)">
+                <option value="-">SELECT SECTOR</option>
+                <option value="MOGUSA">百草テニスガーデン</option>
+                <option value="NERIMA">練馬ステップイン</option>
+            </select>
+        </div>
+        <div id="mapContainer">
+            <div class="empty-map-state">
+                <div class="spinning" style="display:inline-block; margin-bottom:10px;">❖</div><br>
+                WAITING FOR NAVI INPUT...
+            </div>
+        </div>
+    </div>
+
+    <!-- MY PAGE SECTION -->
+    <div id="view-mypage" class="view-section">
+        <div id="myPageContent">
+            <!-- Content injected by JS -->
+        </div>
+        <input type="file" id="avatarInput" hidden accept="image/*" onchange="handleAvatarUpload(this)">
+    </div>
+
+    <!-- MATCH INPUT SECTION -->
+    <div id="view-match" class="view-section active">
+        <div class="input-header-area">
+            <div id="matchDate"></div>
+            <select id="courtSelect" onchange="saveState()" disabled>
+                <option value="-">-</option>
+                <option value="練馬ステップイン">練馬ステップイン</option>
+                <option value="百草テニスガーデン">百草テニスガーデン</option>
+                <option value="モリパーク テニスガーデン">モリパーク テニスガーデン</option>
+                <option value="白子町">白子町</option>
+            </select>
+            <div class="header-ctrl-area">
+                 <button id="editBtn" class="btn-ctrl" onclick="toggleEditMode()">EDIT</button>
+                 <button id="resetBtn" class="btn-ctrl" onclick="secureReset()" disabled>RESET</button>
+            </div>
+        </div>
+
+        <div class="round-title">ROUND 01</div>
+        <div class="player-inputs">
+            <div class="input-group"><label>I</label><select id="r1_p1" class="player-select" onchange="updateSchedule('r1')" disabled></select></div>
+            <div class="input-group"><label>II</label><select id="r1_p2" class="player-select" onchange="updateSchedule('r1')" disabled></select></div>
+            <div class="input-group"><label>III</label><select id="r1_p3" class="player-select" onchange="updateSchedule('r1')" disabled></select></div>
+            <div class="input-group"><label>IV</label><select id="r1_p4" class="player-select" onchange="updateSchedule('r1')" disabled></select></div>
+            <div class="input-group"><label>V</label><select id="r1_p5" class="player-select" onchange="updateSchedule('r1')" disabled></select></div>
+        </div>
+        <table class="input-match-table">
+            <thead><tr><th>No.</th><th>PAIR A</th><th>G</th><th></th><th>G</th><th>PAIR B</th><th>REST</th></tr></thead>
+            <tbody id="r1_matchTableBody"></tbody>
+        </table>
+        <div style="text-align: center;" class="ranking-area"><h3>RANKING // 1st Phase</h3></div>
+        <table class="standard-table">
+            <thead><tr><th>#</th><th>NAME</th><th>WIN</th><th>RATE</th><th>G</th></tr></thead>
+            <tbody id="r1_rankingTableBody"></tbody>
+        </table>
+
+        <div class="round-title">ROUND 02</div>
+        <div class="player-inputs">
+            <div class="input-group"><label>I</label><select id="r2_p1" class="player-select" onchange="updateSchedule('r2')" disabled></select></div>
+            <div class="input-group"><label>II</label><select id="r2_p2" class="player-select" onchange="updateSchedule('r2')" disabled></select></div>
+            <div class="input-group"><label>III</label><select id="r2_p3" class="player-select" onchange="updateSchedule('r2')" disabled></select></div>
+            <div class="input-group"><label>IV</label><select id="r2_p4" class="player-select" onchange="updateSchedule('r2')" disabled></select></div>
+            <div class="input-group"><label>V</label><select id="r2_p5" class="player-select" onchange="updateSchedule('r2')" disabled></select></div>
+        </div>
+        <table class="input-match-table">
+            <thead><tr><th>No.</th><th>PAIR A</th><th>G</th><th></th><th>G</th><th>PAIR B</th><th>REST</th></tr></thead>
+            <tbody id="r2_matchTableBody"></tbody>
+        </table>
+        <div style="text-align: center;" class="ranking-area"><h3>RANKING // 2nd Phase</h3></div>
+        <table class="standard-table">
+            <thead><tr><th>#</th><th>NAME</th><th>WIN</th><th>RATE</th><th>G</th></tr></thead>
+            <tbody id="r2_rankingTableBody"></tbody>
+        </table>
+
+        <div style="text-align: center; margin-top:30px;" class="ranking-area"><h3 style="color:#fff;">TOTAL RANKING (TODAY)</h3></div>
+        <table class="standard-table">
+            <thead><tr><th>#</th><th>NAME</th><th>WIN</th><th>RATE</th><th>G</th></tr></thead>
+            <tbody id="total_input_rankingTableBody"></tbody>
+        </table>
+
+        <button id="sendButton" class="btn-send" onclick="sendToSpreadsheet()" disabled>TRANSMIT DATA</button>
+    </div>
+
+    <!-- DASHBOARD SECTION -->
+    <div id="view-dashboard" class="view-section">
+        <div class="section-title">活動状況サマリー</div>
+        <div class="dashboard-grid">
+            <div class="stat-card"><div class="stat-label">開催回数</div><div class="stat-value highlight" id="totalMissions">0</div></div>
+            <div class="stat-card"><div class="stat-label">総ゲーム数</div><div class="stat-value" id="totalGames">0</div></div>
+            <div class="stat-card"><div class="stat-label">平均ゲーム</div><div class="stat-value" id="avgGames">-</div></div>
+            <div class="stat-card"><div class="stat-label">最新MVP</div><div class="stat-value" id="latestMvp">-</div></div>
+        </div>
+        <div class="section-title">勝率分析 (TOP 5)</div>
+        <div class="chart-container">
+            <canvas id="winRateChart"></canvas>
+        </div>
+        <div class="section-title" style="margin-top:40px;">対戦履歴ログ</div>
+        <div id="logsContainer"></div>
+    </div>
+
+    <!-- RANKING SECTION -->
+    <div id="view-ranking" class="view-section">
+        <div class="section-title">通算個人ランキング</div>
+        <div class="sector-filter-area" style="text-align:center; margin-bottom:20px;">
+            <select id="sectorSelect" class="sector-select" onchange="filterRanking(this.value)">
+                <option value="ALL">ALL SECTORS</option>
+                <option value="練馬ステップイン">練馬</option>
+                <option value="百草テニスガーデン">百草</option>
+                <option value="モリパーク テニスガーデン">モリパーク</option>
+                <option value="白子町">白子町</option>
+            </select>
+        </div>
+        <div style="text-align:center; font-size:0.7rem; color:#888; margin-bottom:10px;">行をタップして詳細を表示</div>
+        <table>
+            <thead><tr><th>順位</th><th>名前</th><th>勝利数</th><th>勝率</th><th>MVP</th></tr></thead>
+            <tbody id="leaderboardBody"></tbody>
+        </table>
+        <div class="medal-legend">
+            <span>👑 最高勝率</span> <span>🔥 勝率70%↑</span> <span>💪🏼 最多試合</span> <span>⭐ MVP</span><br>
+            <span>🎯 完封最多</span> <span>❤️‍🔥 接戦勝率No.1</span>
+        </div>
+        <div class="rank-legend">
+            <span>🌑 候補生 (0~)</span> <span>🛸 パイロット (100~)</span> <span>🛰️ 士官 (300~)</span><br>
+            <span>🚀 指揮官 (600~)</span> <span>🪐 艦長 (1000~)</span> <span>🌌 提督 (2000~)</span>
+        </div>
+        <div style="margin-top: 40px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+            <div class="section-title">最強ペアランキング</div>
+            <div style="text-align:center; font-size:0.7rem; color:#666; margin-bottom:10px;">※2試合以上組んだペアのみ対象</div>
+            <table class="standard-table">
+                <thead><tr><th>順位</th><th>ペア</th><th>勝敗</th><th>勝率</th></tr></thead>
+                <tbody id="pairRankingBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- SCHEDULE SECTION -->
+    <div id="view-schedule" class="view-section">
+        <div class="section-title">MISSION SCHEDULE</div>
+        <div style="text-align:center; margin: 15px 0 25px 0;">
+            <a href="https://liff.line.me/2008858372-NgwrDQlQ" target="_blank" style="color:#00ffff; text-decoration:none; border-bottom:1px solid #00ffff; padding-bottom:3px; font-size:0.9rem; letter-spacing:1px;">日程調整記入はこちらから ↗</a>
+        </div>
+        <div id="scheduleTabs" class="month-tabs-area"></div>
+        <div id="scheduleList" class="schedule-list">
+            <!-- CSSで高さを確保するためのプレースホルダー -->
+            <div style="padding:20px; text-align:center; color:#888;">LOADING DATA...</div>
+        </div>
+    </div>
+
+    <!-- GAME SECTION -->
+    <div id="view-game" class="view-section">
+        <div class="game-hero">
+            <div class="game-tag">DEV PHASE 1</div>
+            <h2>RESOURCE STRATEGY<br>CARD BATTLE</h2>
+            <p>1v1 TACTICAL CARD GAME</p>
+            <button class="btn-hero" onclick="window.location.href='https://reopard92.github.io/game/'">PLAY NOW</button>
+        </div>
+
+        <div class="section-title">MINI GAMES & TOOLS</div>
+        <div class="game-grid">
+            <div class="game-card" onclick="window.location.href='https://reopard92.github.io/game/'">
+                <div class="game-status live">BETA</div>
+                <div class="game-icon">⚔️</div>
+                <div class="game-card-title">CARD BATTLE</div>
+            </div>
+
+            <!-- スロットゲーム -->
+            <div class="game-card" onclick="openSlotGame()">
+                <div class="game-status live">NEW</div>
+                <div class="game-icon">🎰</div>
+                <div class="game-card-title">SLOT MACHINE</div>
+            </div>
+
+            <div class="game-card" onclick="openCoinGame()">
+                <div class="game-status live">LIVE</div>
+                <div class="game-icon">🪙</div>
+                <div class="game-card-title">COIN TOSS</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- FOOTER NAV -->
+<nav id="bottomNav" class="bottom-nav">
+    <button class="nav-item active" onclick="switchMainView('top')"><span class="nav-icon">🏠</span>TOP</button>
+    <button class="nav-item" onclick="switchMainView('match')"><span class="nav-icon">🎾</span>INPUT</button>
+    <button class="nav-item" onclick="switchMainView('dashboard')"><span class="nav-icon">📈</span>DATA</button>
+    <button class="nav-item" onclick="switchMainView('ranking')"><span class="nav-icon">👑</span>RANK</button>
+    <button class="nav-item" onclick="switchMainView('schedule')"><span class="nav-icon">📅</span>SCHEDULE</button>
+</nav>
+
+<!-- MODALS -->
+<div id="playerModal" onclick="closeModal(event)">
+    <div class="modal-content">
+        <button class="close-btn" onclick="closeModal(event)">×</button>
+        <div class="modal-title" id="modalPlayerName"></div>
+        <div id="rankInfoArea" class="rank-info-area"></div>
+        <div class="modal-medals" id="modalMedals"></div>
+        <div class="section-title" style="font-size:0.9rem;">能力チャート</div>
+        <div class="chart-container" style="height:200px; margin-bottom:15px;">
+            <canvas id="radarChart"></canvas>
+        </div>
+        <div class="section-title" style="font-size:0.9rem;">勝率推移</div>
+        <div class="chart-container" style="height:150px; margin-bottom:0;">
+            <canvas id="historyChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div id="videoModal" onclick="closeVideoModal(event)">
+    <div class="video-container">
+        <div id="videoPlayer"></div>
+    </div>
+</div>
+
+<div id="coinGameModal" onclick="closeCoinGame(event)">
+    <div class="modal-content" style="max-width:300px; text-align:center;">
+        <button class="close-btn" onclick="closeCoinGame(event)">×</button>
+        <div class="modal-title">COIN TOSS</div>
+        <div class="coin-game-container">
+            <div id="gameCoin" class="coin-large" onclick="playCoinToss()">TAP</div>
+            <div style="font-size:0.8rem; color:#aaa;">TAP COIN TO FLIP</div>
+        </div>
+    </div>
+</div>
+
+<!-- スロットゲームモーダル (更新: 配当表シンプル化 & レバー) -->
+<div id="slotGameModal" onclick="closeSlotGame(event)">
+    <div class="modal-content" style="max-width:480px; text-align:center; border-color: #ffd700; background: #111; padding: 20px 10px;">
+        <button class="close-btn" onclick="closeSlotGame(event)">×</button>
+        <div class="modal-title" style="color: #ffd700; margin-bottom: 5px;">CASINO SLOT</div>
+        
+        <!-- 配当表エリア (シンプル版) -->
+        <div class="slot-payout-table">
+            <div class="payout-row"><span class="payout-icon">7</span> <span class="payout-val">7777</span></div>
+            <div class="payout-row"><span class="payout-icon">💎</span> <span class="payout-val">1000</span></div>
+            <div class="payout-row"><span class="payout-icon">🔔</span> <span class="payout-val">500</span></div>
+            <div class="payout-row"><span class="payout-icon">🍇</span> <span class="payout-val">300</span></div>
+            <div class="payout-row"><span class="payout-icon">🍒</span> <span class="payout-val">100</span></div>
+            <div class="payout-row"><span class="payout-icon">Any7</span> <span class="payout-val">20</span></div>
+            <div class="payout-row danger"><span class="payout-icon">💀</span> <span class="payout-val">-1000</span></div>
+        </div>
+
+        <div class="slot-frame">
+            <div class="slot-machine-container">
+                <div class="reel-container">
+                    <div id="reel1" class="reel">7</div>
+                </div>
+                <div class="reel-container">
+                    <div id="reel2" class="reel">7</div>
+                </div>
+                <div class="reel-container">
+                    <div id="reel3" class="reel">7</div>
+                </div>
+            </div>
+            
+            <!-- レバーエリア -->
+            <div class="slot-lever-container" onclick="pullSlotLever()">
+                <div class="slot-lever-base"></div>
+                <div class="slot-lever-stick">
+                    <div class="slot-lever-knob"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stop-btn-area">
+            <button id="stop1" class="btn-stop" onclick="stopReel(0)" disabled>STOP</button>
+            <button id="stop2" class="btn-stop" onclick="stopReel(1)" disabled>STOP</button>
+            <button id="stop3" class="btn-stop" onclick="stopReel(2)" disabled>STOP</button>
+        </div>
+
+        <div class="slot-info-area">
+            <div style="font-size:0.9rem; color:#aaa; margin-bottom:5px;">BET: <span style="color:#ffd700; font-weight:bold;">20</span> COINS</div>
+            <div id="slotMessage" style="color:#ffd700; min-height:24px; font-weight:bold; margin:5px 0; font-size:1.1rem; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);">PULL THE LEVER!</div>
+        </div>
+        
+        <div style="margin-top:15px; font-size:0.9rem; color:#fff;">
+            WALLET: <span id="slotWallet" style="color:#ffd700;">0</span>
+        </div>
+    </div>
+</div>
+
+
+<div id="scheduleDetailModal" onclick="closeScheduleModal(event)">
+    <div class="modal-content">
+        <button class="close-btn" onclick="closeScheduleModal(event)">×</button>
+        <div class="detail-header">
+            <div class="detail-date" id="modalScheduleDate"></div>
+            <div style="font-size:0.8rem; color:#888;">回答状況</div>
+        </div>
+        <ul class="detail-list" id="modalScheduleList"></ul>
+    </div>
+</div>
+
+<div id="loginModal">
+    <div class="modal-content" style="text-align:center; max-width:320px;">
+        <button class="close-btn" onclick="document.getElementById('loginModal').style.display='none'">×</button>
+        <div class="modal-title">ACCESS LOGIN</div>
+        <div style="margin-bottom:20px; color:#aaa; font-size:0.8rem;">ENTER PASSCODE TO IDENTIFY</div>
+        <input type="number" id="loginPassInput" placeholder="PASSCODE">
+        <button class="btn-login" onclick="attemptLogin()">AUTHENTICATE</button>
+        <div style="margin-top:20px;">
+            <button class="btn-guest" onclick="enableGuestMode()">CONTINUE AS GUEST</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Link to external JS -->
+<script src="script.js"></script>
+
+</body>
+</html>
