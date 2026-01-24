@@ -14,31 +14,37 @@ let slotValues = [0, 0, 0];
 let isSlotSpinning = [false, false, false];
 let isLeverLocked = false;
 let slotSessionDelta = 0;
+
 let playerStatsGlobal = {};
+let rawAnalysisRankings = [];
+let rawAnalysisMatches = [];
+let globalScheduleData = [];
+let radarChartInstance = null;
+let historyChartInstance = null;
+let winRateChartInstance = null;
+let currentSector = 'ALL';
 
 window.onload = function() {
-    // 確実にローディングを消すためのエラーハンドリング
     try {
         initAuth();
         initSelectors();
         fetchAnalysisData();
-        fetchWeather();
         fetchScheduleData();
+        fetchWeather();
 
         const today = new Date();
         const yyyy = today.getFullYear();
         const mm = String(today.getMonth() + 1).padStart(2, '0');
         const dd = String(today.getDate()).padStart(2, '0');
-        const dateEl = document.getElementById('matchDate');
-        if(dateEl) dateEl.textContent = `${yyyy}-${mm}-${dd}`;
+        document.getElementById('matchDate').textContent = `${yyyy}-${mm}-${dd}`;
 
         const lastView = sessionStorage.getItem('lastView') || 'top';
         switchMainView(lastView);
 
+        if (!loadState()) { updateSchedule('r1'); updateSchedule('r2'); }
     } catch (e) {
-        console.error("Initialization Error:", e);
+        console.error("Init error", e);
     } finally {
-        // 何があっても1秒後にローダーを消す
         setTimeout(() => {
             const loader = document.getElementById('loadingScreen');
             if (loader) {
@@ -49,6 +55,7 @@ window.onload = function() {
     }
 };
 
+/* AUTH & COIN */
 function initAuth() {
     const stored = localStorage.getItem(LOGIN_KEY);
     if (stored) {
@@ -68,12 +75,11 @@ function fetchCoinData(name) {
                 updateUserDisplay();
                 if(document.getElementById('view-mypage')?.classList.contains('active')) renderMyPage();
             }
-        }).catch(err => console.error("Coin fetch error:", err));
+        });
 }
 
 function updateUserDisplay() {
     const disp = document.getElementById('currentUserDisplay');
-    if (!disp) return;
     if (currentUser) {
         disp.textContent = `${currentUser.name} : 🪙${currentCoins.toLocaleString()}`;
         disp.className = 'user-status-display status-user';
@@ -89,139 +95,231 @@ function attemptLogin() {
         currentUser = { name: "周平" };
         localStorage.setItem(LOGIN_KEY, JSON.stringify(currentUser));
         location.reload();
-    } else {
-        alert("ACCESS DENIED");
-    }
+    } else { alert("ACCESS DENIED"); }
 }
 
-function enableGuestMode() {
-    document.getElementById('loginModal').style.display = 'none';
-}
+function enableGuestMode() { document.getElementById('loginModal').style.display = 'none'; }
 
+/* VIEW CONTROL */
 function switchMainView(name) {
     sessionStorage.setItem('lastView', name);
     document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
     const target = document.getElementById(`view-${name}`);
-    if(target) target.classList.add('active');
-
+    if (target) target.classList.add('active');
+    
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
     const titles = { 'top': 'HOME', 'match': 'MATCH INPUT', 'dashboard': 'DASHBOARD', 'ranking': 'RANKING', 'schedule': 'MISSION SCHEDULE', 'mypage': 'MY PAGE', 'game': 'GAME ARCHIVE' };
-    const pageTitle = document.getElementById('pageTitle');
-    if(pageTitle) pageTitle.textContent = titles[name] || 'TENNIS';
+    document.getElementById('pageTitle').textContent = titles[name] || 'TENNIS';
 }
 
-function showMyPage() {
-    if (!currentUser) { document.getElementById('loginModal').style.display = 'flex'; return; }
-    switchMainView('mypage');
-    renderMyPage();
-}
-
-function renderMyPage() {
-    const content = document.getElementById('myPageContent');
-    if(!content) return;
-    content.innerHTML = `
-        <div class="mypage-header">
-            <div class="mypage-avatar-large">${currentUser.name[0]}</div>
-            <div class="mypage-name">${currentUser.name}</div>
-        </div>
-        <div class="mypage-coin-area"><div class="coin-val">${currentCoins.toLocaleString()}</div><div class="coin-label">CRYPTO COINS</div></div>
-        <div style="text-align:center;"><button class="btn-logout" onclick="handleLogout()" style="background:transparent; color:#ff5252; border:1px solid #ff5252; padding:8px 20px; border-radius:20px; cursor:pointer;">LOGOUT</button></div>
-    `;
-}
-
-function handleLogout() { localStorage.removeItem(LOGIN_KEY); location.reload(); }
+function selectAppMode(m) { toggleSideMenu(); switchMainView(m === 'tennis' ? 'top' : 'game'); }
 function toggleSideMenu() { document.getElementById('sideMenu').classList.toggle('open'); }
 function closeSideMenu(e) { if(e.target.id === 'sideMenu') document.getElementById('sideMenu').classList.remove('open'); }
-function selectAppMode(m) { toggleSideMenu(); switchMainView(m === 'tennis' ? 'top' : 'game'); }
 
-/* SLOT MACHINE LOGIC */
-function openSlotGame() { 
-    if(!currentUser) { showToast("LOGIN REQUIRED"); return; } 
-    document.getElementById('slotGameModal').style.display='flex'; 
-    slotSessionDelta=0; 
-    document.getElementById('slotWallet').innerText=currentCoins.toLocaleString(); 
+/* DATA ANALYSIS (RESTORED) */
+async function fetchAnalysisData() {
+    if(!GAS_WEB_APP_URL || GAS_WEB_APP_URL.includes("ここに")) return;
+    try {
+        const res = await fetch(GAS_WEB_APP_URL);
+        const json = await res.json();
+        if(json.status === 'success') { 
+            rawAnalysisRankings = json.rankings; 
+            rawAnalysisMatches = json.matches;
+            processAnalysisData(); 
+        }
+    } catch(e) { console.error(e); }
 }
 
-function closeSlotGame(e) { 
-    if(e.target.id==='slotGameModal'||e.target.className==='close-btn') { 
-        saveSlotSession(); 
-        document.getElementById('slotGameModal').style.display='none'; 
-    } 
+function filterRanking(sector) { currentSector = sector; processAnalysisData(); }
+
+function processAnalysisData() {
+    const rRows = rawAnalysisRankings.slice(1);
+    let pStats = {}, mDates = new Set(), totalG = 0, logs = {};
+    let max = { wins:0, games:0, mvpCount:0, matches:0 };
+
+    rRows.forEach(row => {
+        if (!row[0] || !row[3]) return;
+        const court = row[1];
+        if (currentSector !== 'ALL' && court !== currentSector) return;
+        const rawName = String(row[3]);
+        const nm = rawName.split(' (')[0];
+        const w = parseInt(row[4]), l = parseInt(row[5]), g = parseInt(row[7]);
+        const d = row[0].split('T')[0];
+        mDates.add(d); totalG += g;
+
+        if(!pStats[nm]) pStats[nm] = {name:nm, wins:0, losses:0, games:0, mvpCount:0, matches:0, history:[]};
+        pStats[nm].wins += w; pStats[nm].losses += l; pStats[nm].games += g; pStats[nm].matches += (w+l);
+        if(row[2] == 1) pStats[nm].mvpCount++;
+        
+        const wr = pStats[nm].wins + pStats[nm].losses > 0 ? (pStats[nm].wins / (pStats[nm].wins + pStats[nm].losses)) * 100 : 0;
+        pStats[nm].history.push({date: d, rate: wr});
+
+        const k = `${d}_${court}`;
+        if(!logs[k]) logs[k] = {date:d, court:court, records:[]};
+        logs[k].records.push({ rank:row[2], name:nm, win:w, lose:l, games:g });
+    });
+
+    let pairStats = {};
+    const mRows = rawAnalysisMatches ? rawAnalysisMatches.slice(1) : [];
+    mRows.forEach(row => {
+        const pA1=row[4], pA2=row[5], sA=parseInt(row[6]), sB=parseInt(row[7]), pB1=row[8], pB2=row[9];
+        const pairA = [pA1,pA2].sort().join(' & '); const pairB = [pB1,pB2].sort().join(' & ');
+        if(!pairStats[pairA]) pairStats[pairA]={wins:0,losses:0,total:0}; if(!pairStats[pairB]) pairStats[pairB]={wins:0,losses:0,total:0};
+        pairStats[pairA].total++; pairStats[pairB].total++;
+        if(sA > sB) { pairStats[pairA].wins++; pairStats[pairB].losses++; }
+        else if(sB > sA) { pairStats[pairB].wins++; pairStats[pairA].losses++; }
+    });
+
+    playerStatsGlobal = pStats;
+    playerStatsGlobal._max = max;
+
+    document.getElementById('totalMissions').textContent = mDates.size;
+    document.getElementById('totalGames').textContent = totalG;
+    document.getElementById('avgGames').textContent = mDates.size > 0 ? (totalG / mDates.size).toFixed(1) : "0";
+
+    const sortedP = Object.values(pStats).sort((a,b)=>{
+        const rA = a.matches > 0 ? a.wins/a.matches : 0;
+        const rB = b.matches > 0 ? b.wins/b.matches : 0;
+        return rB - rA;
+    });
+
+    renderAnalysisRanking(sortedP);
+    renderAnalysisPairs(pairStats);
+    renderAnalysisLogs(logs);
+    renderAnalysisChart(sortedP);
 }
 
+function renderAnalysisRanking(players) {
+    const tb = document.getElementById('leaderboardBody'); tb.innerHTML="";
+    players.forEach((p,i)=>{
+        const tr = document.createElement('tr');
+        tr.onclick = () => showModal(p.name);
+        const rate = p.matches > 0 ? ((p.wins/p.matches)*100).toFixed(1)+'%' : '-';
+        tr.innerHTML = `<td class="${i===0?'rank-1':''}">${i+1}</td><td>${p.name}</td><td>${p.wins}</td><td>${rate}</td><td>${p.mvpCount}</td>`;
+        tb.appendChild(tr);
+    });
+}
+
+function renderAnalysisPairs(ps) {
+    const tb = document.getElementById('pairRankingBody'); tb.innerHTML="";
+    const pairs = Object.entries(ps).map(([n,s])=>({name:n,...s})).filter(p=>p.total>=2).sort((a,b)=> (b.wins/b.total) - (a.wins/a.total));
+    pairs.forEach((p,i)=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="${i===0?'rank-1':''}">${i+1}</td><td>${p.name}</td><td>${p.wins}-${p.losses}</td><td>${(p.wins/p.total*100).toFixed(1)}%</td>`;
+        tb.appendChild(tr);
+    });
+}
+
+function renderAnalysisLogs(logs) {
+    const c = document.getElementById('logsContainer'); c.innerHTML="";
+    Object.keys(logs).sort().reverse().forEach(k => {
+        const l = logs[k];
+        const div = document.createElement('div'); div.className="log-item";
+        div.innerHTML = `<div class="log-header" onclick="this.nextElementSibling.classList.toggle('open')"><span class="log-date">${l.date}</span><span class="log-court">@${l.court}</span></div><div class="log-content">${l.records.map(r=>`<div>${r.rank}. ${r.name} (${r.win}-${r.lose})</div>`).join('')}</div>`;
+        c.appendChild(div);
+    });
+}
+
+function renderAnalysisChart(players) {
+    if(winRateChartInstance) winRateChartInstance.destroy();
+    const ctx = document.getElementById('winRateChart').getContext('2d');
+    const tops = players.slice(0,5);
+    winRateChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: tops.map(p=>p.name), datasets: [{ label:'勝率 (%)', data: tops.map(p=>p.matches>0?p.wins/p.matches*100:0), backgroundColor:'rgba(0,255,255,0.2)', borderColor:'#00ffff', borderWidth:1 }] },
+        options: { responsive:true, maintainAspectRatio:false }
+    });
+}
+
+/* SCHEDULE (RESTORED) */
+async function fetchScheduleData() {
+    if(!SCHEDULE_GAS_URL) return;
+    try {
+        const res = await fetch(SCHEDULE_GAS_URL);
+        const data = await res.json();
+        globalScheduleData = data;
+        initScheduleTabs(data);
+    } catch(e) { console.error(e); }
+}
+
+function initScheduleTabs(data) {
+    const container = document.getElementById('scheduleTabs');
+    const months = [...new Set(data.map(item => item.fullDate.substring(0, 7)))];
+    container.innerHTML = months.map((m, i) => `<div class="month-tab ${i===0?'active':''}" onclick="renderScheduleList('${m}', this)">${m.split('-')[1]}月</div>`).join('');
+    if(months[0]) renderScheduleList(months[0]);
+}
+
+function renderScheduleList(m, el) {
+    if(el) { document.querySelectorAll('.month-tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); }
+    const list = document.getElementById('scheduleList');
+    const filtered = globalScheduleData.filter(item => item.fullDate.startsWith(m));
+    list.innerHTML = filtered.map(item => `
+        <div class="schedule-item" onclick="showScheduleDetail('${item.fullDate}')">
+            <span>${item.date}</span>
+            <span>◯:${item.counts.ok} △:${item.counts.maybe} ✕:${item.counts.ng}</span>
+        </div>`).join('');
+}
+
+function showScheduleDetail(fullDate) {
+    const item = globalScheduleData.find(d => d.fullDate === fullDate);
+    if(!item) return;
+    document.getElementById('modalScheduleDate').innerText = item.date;
+    const list = document.getElementById('modalScheduleList');
+    list.innerHTML = item.details.map(d => `<li>${d.name}: ${d.status === 'ok'?'◯':(d.status==='maybe'?'△':'✕')}</li>`).join('');
+    document.getElementById('scheduleDetailModal').style.display = 'flex';
+}
+
+function closeScheduleModal() { document.getElementById('scheduleDetailModal').style.display = 'none'; }
+
+/* SLOT MACHINE (FIXED PROBABILITY) */
+function openSlotGame() { if(!currentUser) { showToast("LOGIN REQUIRED"); return; } document.getElementById('slotGameModal').style.display='flex'; slotSessionDelta=0; document.getElementById('slotWallet').innerText=currentCoins.toLocaleString(); }
+function closeSlotGame(e) { if(e.target.id==='slotGameModal'||e.target.className==='close-btn') { saveSlotSession(); document.getElementById('slotGameModal').style.display='none'; } }
 function pullSlotLever() {
     if(isLeverLocked || currentCoins < 20) return;
-    isLeverLocked = true;
-    const stick = document.querySelector('.slot-lever-stick'); 
-    if(stick) stick.classList.add('pulled');
+    isLeverLocked = true; document.querySelector('.slot-lever-stick').classList.add('pulled');
     setTimeout(() => {
-        if(stick) stick.classList.remove('pulled');
-        currentCoins -= 20; 
-        slotSessionDelta -= 20;
+        document.querySelector('.slot-lever-stick').classList.remove('pulled');
+        currentCoins -= 20; slotSessionDelta -= 20;
         document.getElementById('slotWallet').innerText = currentCoins.toLocaleString();
-        updateUserDisplay();
-        startSlot();
+        updateUserDisplay(); startSlot();
     }, 300);
 }
-
 function startSlot() {
     for(let i=0; i<3; i++) {
-        isSlotSpinning[i] = true; 
-        const stopBtn = document.getElementById(`stop${i+1}`);
-        if(stopBtn) stopBtn.disabled = false;
-        const reel = document.getElementById(`reel${i+1}`);
-        if(reel) reel.classList.add('spinning');
-        slotIntervals[i] = setInterval(() => {
-            if(reel) reel.innerText = slotSymbols[Math.floor(Math.random()*slotSymbols.length)];
-        }, 100);
+        isSlotSpinning[i] = true; document.getElementById(`stop${i+1}`).disabled = false;
+        document.getElementById(`reel${i+1}`).classList.add('spinning');
+        slotIntervals[i] = setInterval(() => { document.getElementById(`reel${i+1}`).innerText = slotSymbols[Math.floor(Math.random()*slotSymbols.length)]; }, 100);
     }
 }
-
 function stopReel(idx) {
     if(!isSlotSpinning[idx]) return;
-    clearInterval(slotIntervals[idx]);
-    isSlotSpinning[idx] = false; 
-    const stopBtn = document.getElementById(`stop${idx+1}`);
-    if(stopBtn) stopBtn.disabled = true;
-    const reel = document.getElementById(`reel${idx+1}`);
-    if(reel) reel.classList.remove('spinning');
-    
-    // 【重要】🍒が出る確率を11%に固定
+    clearInterval(slotIntervals[idx]); isSlotSpinning[idx] = false;
+    document.getElementById(`stop${idx+1}`).disabled = true;
+    const reel = document.getElementById(`reel${idx+1}`); reel.classList.remove('spinning');
+
+    // 【重要】🍒の出現確率を11%に設定
     let finalSymbol;
-    const rand = Math.random();
-    if (rand < 0.11) {
-        finalSymbol = '🍒';
-    } else {
-        const others = slotSymbols.filter(s => s !== '🍒');
-        finalSymbol = others[Math.floor(Math.random() * others.length)];
-    }
-    
+    if (Math.random() < 0.11) { finalSymbol = '🍒'; } 
+    else { const others = slotSymbols.filter(s => s !== '🍒'); finalSymbol = others[Math.floor(Math.random() * others.length)]; }
+
     slotValues[idx] = slotSymbols.indexOf(finalSymbol);
-    if(reel) reel.innerText = finalSymbol;
+    reel.innerText = finalSymbol;
     if(!isSlotSpinning.some(s=>s)) checkSlotResult();
 }
-
 function checkSlotResult() {
     const [v1,v2,v3] = slotValues.map(i=>slotSymbols[i]);
     let win = 0;
     if(v1===v2 && v2===v3) {
         if(v1==='7') win=7777; else if(v1==='💎') win=1000; else if(v1==='🔔') win=500; else if(v1==='🍇') win=300; else if(v1==='🍒') win=100; else if(v1==='💀') win=-1000;
     } else if([v1,v2,v3].includes('7')) win=20;
-    currentCoins += win; 
-    slotSessionDelta += win;
-    const msg = document.getElementById('slotMessage');
-    if(msg) msg.innerText = win>0 ? `WIN! +${win}` : (win<0 ? `LOST ${win}` : "TRY AGAIN");
+    currentCoins += win; slotSessionDelta += win;
+    document.getElementById('slotMessage').innerText = win>0 ? `WIN! +${win}` : "TRY AGAIN";
     document.getElementById('slotWallet').innerText = currentCoins.toLocaleString();
-    updateUserDisplay();
-    isLeverLocked = false;
+    updateUserDisplay(); isLeverLocked = false;
 }
+function saveSlotSession() { if(slotSessionDelta!==0 && COIN_MANAGER_URL && currentUser) fetch(COIN_MANAGER_URL, { method:'POST', mode:'no-cors', body: JSON.stringify({user:currentUser.name, action:'update', amount:slotSessionDelta}), keepalive:true }); }
 
-function saveSlotSession() {
-    if(slotSessionDelta===0 || !COIN_MANAGER_URL || !currentUser) return;
-    fetch(COIN_MANAGER_URL, { method:'POST', mode:'no-cors', body: JSON.stringify({user:currentUser.name, action:'update', amount:slotSessionDelta}), keepalive:true });
-}
-
-/* TENNIS DATA & INITIALIZERS */
+/* MATCH INPUT HELPERS */
 function initSelectors() {
     ['r1', 'r2'].forEach(r => {
         for(let i=1; i<=5; i++){
@@ -231,53 +329,20 @@ function initSelectors() {
     });
 }
 
-function fetchAnalysisData() {
-    if(!GAS_WEB_APP_URL) return;
-    fetch(GAS_WEB_APP_URL).then(res => res.json()).then(json => {
-        if(json.status === 'success') {
-            const missions = document.getElementById('totalMissions');
-            if(missions) missions.textContent = json.rankings.length - 1;
-        }
-    }).catch(e => console.error(e));
-}
-
-function fetchWeather() {
-    fetch("https://api.open-meteo.com/v1/forecast?latitude=35.6895&longitude=139.6917&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo")
-    .then(res => res.json()).then(data => {
-        const container = document.getElementById('weather-forecast');
-        if(!container) return;
-        container.innerHTML = "";
-        data.daily.time.slice(0,5).forEach((t, i) => {
-            const div = document.createElement('div');
-            div.className = 'weather-card';
-            div.innerHTML = `<div style="font-size:0.7rem;">${t.slice(5)}</div><div style="font-size:1.5rem;">${data.daily.weathercode[i]<3?'☀':'☁'}</div><div>${Math.round(data.daily.temperature_2m_max[i])}°</div>`;
-            container.appendChild(div);
-        });
-    }).catch(e => console.error(e));
-}
-
-function fetchScheduleData() {
-    if(!SCHEDULE_GAS_URL) return;
-    fetch(SCHEDULE_GAS_URL).then(res => res.json()).then(data => {
-        const list = document.getElementById('scheduleList');
-        if(!list) return;
-        list.innerHTML = data.length ? "" : "NO SCHEDULE";
-        data.slice(0, 5).forEach(item => {
-            const li = document.createElement('div');
-            li.className = 'schedule-item';
-            li.innerHTML = `<span>${item.date}</span><span>◯:${item.counts.ok} △:${item.counts.maybe}</span>`;
-            list.appendChild(li);
-        });
-    }).catch(e => console.error(e));
+function updateSchedule(rp) {
+    const p = {}; for(let i=1; i<=5; i++) p[i] = document.getElementById(`${rp}_p${i}`).value;
+    const tb = document.getElementById(`${rp}_matchTableBody`); tb.innerHTML = "";
+    [[1,2,3,4,5],[1,5,2,3,4],[1,4,2,5,3],[1,3,4,5,2],[2,4,3,5,1]].forEach((pat, idx) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>MATCH ${idx+1}</td><td>${p[pat[0]]} & ${p[pat[1]]}</td><td><select class="score-select" data-type="scoreA"><option>-</option><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option></select></td><td>VS</td><td><select class="score-select" data-type="scoreB"><option>-</option><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option></select></td><td>${p[pat[2]]} & ${p[pat[3]]}</td><td class="rest-highlight">${p[pat[4]]}</td>`;
+        tb.appendChild(tr);
+    });
+    applyEditMode();
 }
 
 function toggleEditMode() {
-    if(!isEditMode) {
-        const pin = prompt("ENTER PASSCODE");
-        if(pin === "8047") { isEditMode = true; applyEditMode(); }
-    } else {
-        isEditMode = false; applyEditMode();
-    }
+    if(!isEditMode) { if(prompt("ENTER PASSCODE") === "8047") { isEditMode = true; applyEditMode(); } }
+    else { isEditMode = false; applyEditMode(); }
 }
 
 function applyEditMode() {
@@ -286,13 +351,33 @@ function applyEditMode() {
     document.querySelectorAll('select, button#sendButton, button#resetBtn').forEach(el => el.disabled = !isEditMode);
 }
 
+function saveState() {
+    const court = document.getElementById('courtSelect').value;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ court }));
+}
+
+function loadState() {
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if(data && data.court) document.getElementById('courtSelect').value = data.court;
+    return !!data;
+}
+
+/* OTHER UTILS */
+function fetchWeather() {
+    fetch("https://api.open-meteo.com/v1/forecast?latitude=35.6895&longitude=139.6917&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo")
+    .then(res => res.json()).then(data => {
+        const container = document.getElementById('weather-forecast');
+        if(!container) return; container.innerHTML = "";
+        data.daily.time.slice(0,5).forEach((t, i) => {
+            const div = document.createElement('div'); div.className = 'weather-card';
+            div.innerHTML = `<div style="font-size:0.7rem;">${t.slice(5)}</div><div style="font-size:1.5rem;">${data.daily.weathercode[i]<3?'☀':'☁'}</div><div>${Math.round(data.daily.temperature_2m_max[i])}°</div>`;
+            container.appendChild(div);
+        });
+    });
+}
 function manualReload() { location.reload(); }
-function showToast(msg) { 
-    const t=document.getElementById("toast"); 
-    if(t) { t.textContent=msg; t.className="show"; setTimeout(()=>{t.className=""},3000); }
-}
-function playCoinToss() {
-    const c = document.getElementById('gameCoin'); if(!c || c.classList.contains('spinning')) return;
-    c.classList.add('spinning'); c.textContent="";
-    setTimeout(() => { c.classList.remove('spinning'); c.textContent = Math.random()>0.5?"HEAD":"TAIL"; }, 1500);
-}
+function showToast(msg) { const t=document.getElementById("toast"); t.textContent=msg; t.className="show"; setTimeout(()=>{t.className=""},3000); }
+function renderMapInfo(val) { document.getElementById('mapContainer').innerHTML = `<div style="text-align:center; padding:20px;">SECTOR: ${val} LOADED.</div>`; }
+function showModal(name) { document.getElementById('modalPlayerName').innerText = name; document.getElementById('playerModal').style.display='flex'; }
+function closeModal() { document.getElementById('playerModal').style.display='none'; }
+function playCoinToss() { const c = document.getElementById('gameCoin'); c.classList.add('spinning'); setTimeout(() => { c.classList.remove('spinning'); c.textContent = Math.random()>0.5?"HEAD":"TAIL"; }, 1000); }
