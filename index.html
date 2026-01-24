@@ -45,10 +45,6 @@
         <div class="section-title">WEATHER FORECAST</div>
         <div id="weather-forecast" class="weather-container">
             <div class="weather-card"><div class="spinning">❖</div></div>
-            <div class="weather-card empty-slot"></div>
-            <div class="weather-card empty-slot"></div>
-            <div class="weather-card empty-slot"></div>
-            <div class="weather-card empty-slot"></div>
         </div>
 
         <div class="section-title">COURT NAVIGATION</div>
@@ -168,26 +164,29 @@
             <thead><tr><th>順位</th><th>名前</th><th>勝利数</th><th>勝率</th><th>MVP</th></tr></thead>
             <tbody id="leaderboardBody"></tbody>
         </table>
+        <div style="margin-top: 40px;">
+            <div class="section-title">最強ペアランキング</div>
+            <table class="standard-table">
+                <thead><tr><th>順位</th><th>ペア</th><th>勝敗</th><th>勝率</th></tr></thead>
+                <tbody id="pairRankingBody"></tbody>
+            </table>
+        </div>
     </div>
 
     <!-- SCHEDULE SECTION -->
     <div id="view-schedule" class="view-section">
         <div class="section-title">MISSION SCHEDULE</div>
         <div id="scheduleTabs" class="month-tabs-area"></div>
-        <div id="scheduleList" class="schedule-list">
-            <div style="padding:20px; text-align:center; color:#888;">LOADING DATA...</div>
-        </div>
+        <div id="scheduleList" class="schedule-list"></div>
     </div>
 
     <!-- GAME SECTION -->
     <div id="view-game" class="view-section">
         <div class="game-hero">
             <div class="game-tag">DEV PHASE 1</div>
-            <h2>RESOURCE STRATEGY<br>CARD BATTLE</h2>
+            <h2>RESOURCE STRATEGY</h2>
             <p>1v1 TACTICAL CARD GAME</p>
         </div>
-
-        <div class="section-title">MINI GAMES & TOOLS</div>
         <div class="game-grid">
             <div class="game-card" onclick="openSlotGame()">
                 <div class="game-status live">NEW</div>
@@ -201,7 +200,6 @@
             </div>
         </div>
     </div>
-
 </div>
 
 <!-- FOOTER NAV -->
@@ -242,6 +240,34 @@
     </div>
 </div>
 
+<div id="loginModal">
+    <div class="modal-content" style="text-align:center; max-width:320px;">
+        <div class="modal-title">ACCESS LOGIN</div>
+        <input type="number" id="loginPassInput" placeholder="PASSCODE">
+        <button class="btn-login" onclick="attemptLogin()" style="width:100%; margin: 15px 0;">AUTHENTICATE</button>
+        <button class="btn-guest" onclick="enableGuestMode()" style="width:100%;">GUEST MODE</button>
+    </div>
+</div>
+
+<div id="playerModal" onclick="closeModal(event)">
+    <div class="modal-content">
+        <button class="close-btn" onclick="closeModal(event)">×</button>
+        <div class="modal-title" id="modalPlayerName"></div>
+        <div class="chart-container" style="height:200px;"><canvas id="radarChart"></canvas></div>
+        <div class="chart-container" style="height:150px;"><canvas id="historyChart"></canvas></div>
+    </div>
+</div>
+
+<div id="scheduleDetailModal" onclick="closeScheduleModal(event)">
+    <div class="modal-content">
+        <button class="close-btn" onclick="closeScheduleModal(event)">×</button>
+        <div class="detail-header">
+            <div class="detail-date" id="modalScheduleDate"></div>
+        </div>
+        <ul class="detail-list" id="modalScheduleList"></ul>
+    </div>
+</div>
+
 <div id="coinGameModal" onclick="closeCoinGame(event)">
     <div class="modal-content" style="max-width:300px; text-align:center;">
         <button class="close-btn" onclick="closeCoinGame(event)">×</button>
@@ -250,18 +276,8 @@
     </div>
 </div>
 
-<div id="loginModal">
-    <div class="modal-content" style="text-align:center; max-width:320px;">
-        <div class="modal-title">ACCESS LOGIN</div>
-        <input type="number" id="loginPassInput" placeholder="PASSCODE">
-        <button class="btn-send" onclick="attemptLogin()" style="width:100%; margin: 10px 0;">AUTHENTICATE</button>
-        <button class="btn-guest" onclick="enableGuestMode()" style="width:100%;">GUEST MODE</button>
-    </div>
-</div>
-
 <div id="toast"></div>
 
 <script src="script.js"></script>
-
 </body>
 </html>
