@@ -14,7 +14,7 @@ body {
     margin: 0; padding: 0; line-height: 1.6; min-height: 100vh; overflow-x: hidden; padding-bottom: 80px; overscroll-behavior-x: none;
 }
 .container {
-    max-width: 900px; margin: 0 auto; background: rgba(20, 20, 30, 0.4); padding: 30px; border-radius: 2px; border-top: 1px solid rgba(255, 255, 255, 0.1); border-bottom: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); backdrop-filter: blur(5px); min-height: 80vh;
+    max-width: 900px; margin: 0 auto; background: rgba(20, 20, 30, 0.4); padding: 30px; border-radius: 2px; border-top: 1px solid rgba(255, 255, 255, 0.1); border-bottom: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); backdrop-filter: blur(5px); position: relative; min-height: 80vh;
 }
 .app-header { text-align: center; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); position: sticky; top: 0; z-index: 5000; background: rgba(2, 2, 4, 0.85); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; flex-direction: column; width: 100%; }
 h1 { color: #ffffff; font-weight: 300; font-size: 1.6rem; letter-spacing: 3px; margin: 0; text-shadow: 0 0 15px rgba(255, 255, 255, 0.3); text-transform: uppercase; }
@@ -31,8 +31,7 @@ h1 { color: #ffffff; font-weight: 300; font-size: 1.6rem; letter-spacing: 3px; m
 .side-menu-overlay.open .side-menu-content { transform: translateX(0); }
 .menu-item { padding: 20px 30px; color: #fff; font-size: 1.1rem; letter-spacing: 2px; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; text-transform: uppercase; opacity: 0; transform: translateX(30px); transition: all 0.4s ease; }
 .side-menu-overlay.open .menu-item { opacity: 1; transform: translateX(0); }
-.menu-item:hover { background: rgba(0,255,255,0.1); padding-left: 40px; color: #00ffff; }
-.menu-item.active { color: #00ffff; border-left: 4px solid #00ffff; background: rgba(0,255,255,0.05); }
+.menu-item.active { color: #00ffff; border-left: 4px solid #00ffff; }
 .view-section { display: none; animation: fadeIn 0.4s ease; padding-top: 20px; }
 .view-section.active { display: block; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -42,7 +41,7 @@ h1 { color: #ffffff; font-weight: 300; font-size: 1.6rem; letter-spacing: 3px; m
 .stat-label { font-size: 0.7rem; color: #888; margin-bottom: 5px; font-weight: bold; }
 .stat-value { font-size: 1.8rem; color: #fff; font-weight: 300; }
 .stat-value.highlight { color: #00ffff; }
-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+.standard-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
 th { color: #888; font-weight: 300; font-size: 0.75rem; padding: 10px; }
 td { padding: 12px 5px; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.03); font-size: 0.9rem; }
 .btn-send { background: linear-gradient(135deg, #303f9f 0%, #7b1fa2 100%); color: #fff; border: none; padding: 15px 40px; cursor: pointer; font-size: 0.95rem; letter-spacing: 3px; width: 100%; max-width: 350px; margin: 60px auto 0 auto; display: block; }
@@ -68,6 +67,9 @@ td { padding: 12px 5px; text-align: center; border-bottom: 1px solid rgba(255, 2
 .slot-lever-stick { position: absolute; bottom: 20px; left: 10px; width: 10px; height: 80px; background: #888; border-radius: 5px; transform-origin: bottom center; transition: 0.3s; }
 .slot-lever-stick.pulled { transform: rotateX(60deg) scaleY(0.8); }
 .slot-lever-knob { position: absolute; top: -15px; left: -10px; width: 30px; height: 30px; background: radial-gradient(circle at 30% 30%, #ff5252, #b71c1c); border-radius: 50%; }
+.stop-btn-area { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
+.btn-stop { padding: 5px 10px; font-size: 0.7rem; background: #444; color: #fff; border: 1px solid #666; cursor: pointer; }
+.btn-stop:disabled { opacity: 0.5; cursor: not-allowed; }
 
 #toast { visibility: hidden; min-width: 250px; background-color: rgba(0,0,0,0.9); color: #fff; border: 1px solid rgba(255,255,255,0.2); text-align: center; border-radius: 2px; padding: 16px; position: fixed; z-index: 3000; left: 50%; bottom: 100px; transform: translateX(-50%); opacity: 0; transition: 0.4s; }
 #toast.show { visibility: visible; opacity: 1; }
