@@ -7,7 +7,6 @@ const members = ["周平", "すが", "凌矢", "祐介", "志村", "カトケン
 
 let currentUser = null;
 let currentCoins = 0;
-let lastBonusDate = null;
 let isEditMode = false;
 let slotSymbols = ['7', '🔔', '🍒', '🍇', '🍋', '💎', '💀'];
 let slotIntervals = [null, null, null];
@@ -15,18 +14,39 @@ let slotValues = [0, 0, 0];
 let isSlotSpinning = [false, false, false];
 let isLeverLocked = false;
 let slotSessionDelta = 0;
+let playerStatsGlobal = {};
 
 window.onload = function() {
-    initAuth();
-    initSelectors();
-    fetchAnalysisData();
-    fetchWeather();
-    const today = new Date();
-    document.getElementById('matchDate').textContent = today.toISOString().split('T')[0];
-    setTimeout(() => {
-        document.getElementById('loadingScreen').style.opacity = 0;
-        setTimeout(() => { document.getElementById('loadingScreen').style.display = 'none'; }, 800);
-    }, 1000);
+    // 確実にローディングを消すためのエラーハンドリング
+    try {
+        initAuth();
+        initSelectors();
+        fetchAnalysisData();
+        fetchWeather();
+        fetchScheduleData();
+
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const dateEl = document.getElementById('matchDate');
+        if(dateEl) dateEl.textContent = `${yyyy}-${mm}-${dd}`;
+
+        const lastView = sessionStorage.getItem('lastView') || 'top';
+        switchMainView(lastView);
+
+    } catch (e) {
+        console.error("Initialization Error:", e);
+    } finally {
+        // 何があっても1秒後にローダーを消す
+        setTimeout(() => {
+            const loader = document.getElementById('loadingScreen');
+            if (loader) {
+                loader.style.opacity = 0;
+                setTimeout(() => { loader.style.display = 'none'; }, 800);
+            }
+        }, 1000);
+    }
 };
 
 function initAuth() {
@@ -46,13 +66,14 @@ function fetchCoinData(name) {
             if (data.status === 'success') {
                 currentCoins = parseInt(data.coins);
                 updateUserDisplay();
-                if(document.getElementById('view-mypage').classList.contains('active')) renderMyPage();
+                if(document.getElementById('view-mypage')?.classList.contains('active')) renderMyPage();
             }
-        });
+        }).catch(err => console.error("Coin fetch error:", err));
 }
 
 function updateUserDisplay() {
     const disp = document.getElementById('currentUserDisplay');
+    if (!disp) return;
     if (currentUser) {
         disp.textContent = `${currentUser.name} : 🪙${currentCoins.toLocaleString()}`;
         disp.className = 'user-status-display status-user';
@@ -73,11 +94,20 @@ function attemptLogin() {
     }
 }
 
+function enableGuestMode() {
+    document.getElementById('loginModal').style.display = 'none';
+}
+
 function switchMainView(name) {
+    sessionStorage.setItem('lastView', name);
     document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
-    document.getElementById(`view-${name}`).classList.add('active');
+    const target = document.getElementById(`view-${name}`);
+    if(target) target.classList.add('active');
+
     document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-    document.getElementById('pageTitle').textContent = name.toUpperCase();
+    const titles = { 'top': 'HOME', 'match': 'MATCH INPUT', 'dashboard': 'DASHBOARD', 'ranking': 'RANKING', 'schedule': 'MISSION SCHEDULE', 'mypage': 'MY PAGE', 'game': 'GAME ARCHIVE' };
+    const pageTitle = document.getElementById('pageTitle');
+    if(pageTitle) pageTitle.textContent = titles[name] || 'TENNIS';
 }
 
 function showMyPage() {
@@ -87,15 +117,16 @@ function showMyPage() {
 }
 
 function renderMyPage() {
-    const html = `
+    const content = document.getElementById('myPageContent');
+    if(!content) return;
+    content.innerHTML = `
         <div class="mypage-header">
             <div class="mypage-avatar-large">${currentUser.name[0]}</div>
             <div class="mypage-name">${currentUser.name}</div>
         </div>
-        <div class="mypage-coin-area"><div class="coin-val">${currentCoins.toLocaleString()}</div></div>
-        <div style="text-align:center;"><button class="btn-logout" onclick="handleLogout()">LOGOUT</button></div>
+        <div class="mypage-coin-area"><div class="coin-val">${currentCoins.toLocaleString()}</div><div class="coin-label">CRYPTO COINS</div></div>
+        <div style="text-align:center;"><button class="btn-logout" onclick="handleLogout()" style="background:transparent; color:#ff5252; border:1px solid #ff5252; padding:8px 20px; border-radius:20px; cursor:pointer;">LOGOUT</button></div>
     `;
-    document.getElementById('myPageContent').innerHTML = html;
 }
 
 function handleLogout() { localStorage.removeItem(LOGIN_KEY); location.reload(); }
@@ -122,9 +153,9 @@ function pullSlotLever() {
     if(isLeverLocked || currentCoins < 20) return;
     isLeverLocked = true;
     const stick = document.querySelector('.slot-lever-stick'); 
-    stick.classList.add('pulled');
+    if(stick) stick.classList.add('pulled');
     setTimeout(() => {
-        stick.classList.remove('pulled');
+        if(stick) stick.classList.remove('pulled');
         currentCoins -= 20; 
         slotSessionDelta -= 20;
         document.getElementById('slotWallet').innerText = currentCoins.toLocaleString();
@@ -136,10 +167,12 @@ function pullSlotLever() {
 function startSlot() {
     for(let i=0; i<3; i++) {
         isSlotSpinning[i] = true; 
-        document.getElementById(`stop${i+1}`).disabled = false;
-        document.getElementById(`reel${i+1}`).classList.add('spinning');
+        const stopBtn = document.getElementById(`stop${i+1}`);
+        if(stopBtn) stopBtn.disabled = false;
+        const reel = document.getElementById(`reel${i+1}`);
+        if(reel) reel.classList.add('spinning');
         slotIntervals[i] = setInterval(() => {
-            document.getElementById(`reel${i+1}`).innerText = slotSymbols[Math.floor(Math.random()*slotSymbols.length)];
+            if(reel) reel.innerText = slotSymbols[Math.floor(Math.random()*slotSymbols.length)];
         }, 100);
     }
 }
@@ -148,8 +181,10 @@ function stopReel(idx) {
     if(!isSlotSpinning[idx]) return;
     clearInterval(slotIntervals[idx]);
     isSlotSpinning[idx] = false; 
-    document.getElementById(`stop${idx+1}`).disabled = true;
-    document.getElementById(`reel${idx+1}`).classList.remove('spinning');
+    const stopBtn = document.getElementById(`stop${idx+1}`);
+    if(stopBtn) stopBtn.disabled = true;
+    const reel = document.getElementById(`reel${idx+1}`);
+    if(reel) reel.classList.remove('spinning');
     
     // 【重要】🍒が出る確率を11%に固定
     let finalSymbol;
@@ -157,13 +192,12 @@ function stopReel(idx) {
     if (rand < 0.11) {
         finalSymbol = '🍒';
     } else {
-        // 🍒以外の残りのシンボルから均等に選出
         const others = slotSymbols.filter(s => s !== '🍒');
         finalSymbol = others[Math.floor(Math.random() * others.length)];
     }
     
     slotValues[idx] = slotSymbols.indexOf(finalSymbol);
-    document.getElementById(`reel${idx+1}`).innerText = finalSymbol;
+    if(reel) reel.innerText = finalSymbol;
     if(!isSlotSpinning.some(s=>s)) checkSlotResult();
 }
 
@@ -175,42 +209,90 @@ function checkSlotResult() {
     } else if([v1,v2,v3].includes('7')) win=20;
     currentCoins += win; 
     slotSessionDelta += win;
-    document.getElementById('slotMessage').innerText = win>0 ? `WIN! +${win}` : (win<0 ? `LOST ${win}` : "TRY AGAIN");
+    const msg = document.getElementById('slotMessage');
+    if(msg) msg.innerText = win>0 ? `WIN! +${win}` : (win<0 ? `LOST ${win}` : "TRY AGAIN");
     document.getElementById('slotWallet').innerText = currentCoins.toLocaleString();
     updateUserDisplay();
     isLeverLocked = false;
 }
 
 function saveSlotSession() {
-    if(slotSessionDelta===0 || !COIN_MANAGER_URL) return;
+    if(slotSessionDelta===0 || !COIN_MANAGER_URL || !currentUser) return;
     fetch(COIN_MANAGER_URL, { method:'POST', mode:'no-cors', body: JSON.stringify({user:currentUser.name, action:'update', amount:slotSessionDelta}), keepalive:true });
 }
 
-/* OTHER UTILS */
-function playCoinToss() {
-    const c = document.getElementById('gameCoin'); if(c.classList.contains('spinning')) return;
-    c.classList.add('spinning'); c.textContent="";
-    setTimeout(() => { c.classList.remove('spinning'); c.textContent = Math.random()>0.5?"HEAD":"TAIL"; }, 1500);
+/* TENNIS DATA & INITIALIZERS */
+function initSelectors() {
+    ['r1', 'r2'].forEach(r => {
+        for(let i=1; i<=5; i++){
+            const el = document.getElementById(`${r}_p${i}`);
+            if(el) el.innerHTML = '<option value="-">-</option>' + members.map(m => `<option value="${m}">${m}</option>`).join('');
+        }
+    });
 }
 
-function showToast(msg) { 
-    const t=document.getElementById("toast"); t.textContent=msg; t.className="show"; 
-    setTimeout(()=>{t.className=""},3000); 
+function fetchAnalysisData() {
+    if(!GAS_WEB_APP_URL) return;
+    fetch(GAS_WEB_APP_URL).then(res => res.json()).then(json => {
+        if(json.status === 'success') {
+            const missions = document.getElementById('totalMissions');
+            if(missions) missions.textContent = json.rankings.length - 1;
+        }
+    }).catch(e => console.error(e));
+}
+
+function fetchWeather() {
+    fetch("https://api.open-meteo.com/v1/forecast?latitude=35.6895&longitude=139.6917&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo")
+    .then(res => res.json()).then(data => {
+        const container = document.getElementById('weather-forecast');
+        if(!container) return;
+        container.innerHTML = "";
+        data.daily.time.slice(0,5).forEach((t, i) => {
+            const div = document.createElement('div');
+            div.className = 'weather-card';
+            div.innerHTML = `<div style="font-size:0.7rem;">${t.slice(5)}</div><div style="font-size:1.5rem;">${data.daily.weathercode[i]<3?'☀':'☁'}</div><div>${Math.round(data.daily.temperature_2m_max[i])}°</div>`;
+            container.appendChild(div);
+        });
+    }).catch(e => console.error(e));
+}
+
+function fetchScheduleData() {
+    if(!SCHEDULE_GAS_URL) return;
+    fetch(SCHEDULE_GAS_URL).then(res => res.json()).then(data => {
+        const list = document.getElementById('scheduleList');
+        if(!list) return;
+        list.innerHTML = data.length ? "" : "NO SCHEDULE";
+        data.slice(0, 5).forEach(item => {
+            const li = document.createElement('div');
+            li.className = 'schedule-item';
+            li.innerHTML = `<span>${item.date}</span><span>◯:${item.counts.ok} △:${item.counts.maybe}</span>`;
+            list.appendChild(li);
+        });
+    }).catch(e => console.error(e));
+}
+
+function toggleEditMode() {
+    if(!isEditMode) {
+        const pin = prompt("ENTER PASSCODE");
+        if(pin === "8047") { isEditMode = true; applyEditMode(); }
+    } else {
+        isEditMode = false; applyEditMode();
+    }
+}
+
+function applyEditMode() {
+    const editBtn = document.getElementById('editBtn');
+    if(editBtn) editBtn.className = isEditMode ? 'btn-ctrl unlocked' : 'btn-ctrl';
+    document.querySelectorAll('select, button#sendButton, button#resetBtn').forEach(el => el.disabled = !isEditMode);
 }
 
 function manualReload() { location.reload(); }
-
-/* INITIALIZERS STUB */
-function initSelectors() {
-    ['r1', 'r2'].forEach(r => {
-        [1,2,3,4,5].forEach(i => {
-            const el = document.getElementById(`${r}_p${i}`);
-            if(el) el.innerHTML = '<option value="-">-</option>' + members.map(m => `<option value="${m}">${m}</option>`).join('');
-        });
-    });
+function showToast(msg) { 
+    const t=document.getElementById("toast"); 
+    if(t) { t.textContent=msg; t.className="show"; setTimeout(()=>{t.className=""},3000); }
 }
-function updateSchedule(rp) {}
-function fetchAnalysisData() {}
-function fetchWeather() {}
-function toggleEditMode() {}
-function renderMapInfo(val) {}
+function playCoinToss() {
+    const c = document.getElementById('gameCoin'); if(!c || c.classList.contains('spinning')) return;
+    c.classList.add('spinning'); c.textContent="";
+    setTimeout(() => { c.classList.remove('spinning'); c.textContent = Math.random()>0.5?"HEAD":"TAIL"; }, 1500);
+}
