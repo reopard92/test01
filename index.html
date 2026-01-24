@@ -3,281 +3,421 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CODE NAME: 49C</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="TENNIS">
-    <link rel="apple-touch-icon" href="./icon.png">
-    
-    <!-- External Libs -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- Link to external CSS -->
-    <link rel="stylesheet" href="style.css">
+    <title>UR確定！パック開封シミュレーター</title>
+    <style>
+        :root {
+            --card-width: 300px;
+            --card-height: 420px;
+            --pack-color-1: #ff9a9e;
+            --pack-color-2: #fecfef;
+            --pack-color-3: #a18cd1;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #1a1a1a;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            overflow: hidden;
+            perspective: 1000px;
+        }
+
+        /* --- ゲームコンテナ --- */
+        #game-stage {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        /* --- パックのデザイン --- */
+        .pack-container {
+            width: 280px;
+            height: 400px;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.3s ease;
+            z-index: 10;
+        }
+
+        .pack-container:hover {
+            transform: scale(1.05);
+        }
+
+        .pack {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #ff9966, #ff5e62, #a18cd1, #fbc2eb);
+            background-size: 300% 300%;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 0 20px rgba(255,255,255,0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            animation: holoGradient 5s ease infinite;
+            border: 2px solid rgba(255,255,255,0.4);
+        }
+
+        /* パックのギザギザ（上下） */
+        .pack::before, .pack::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 20px;
+            background: repeating-linear-gradient(
+                45deg,
+                #1a1a1a,
+                #1a1a1a 10px,
+                transparent 10px,
+                transparent 20px
+            );
+            opacity: 0.1;
+        }
+        .pack::before { top: 0; }
+        .pack::after { bottom: 0; }
+
+        .pack-title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            text-align: center;
+            line-height: 1.2;
+            mix-blend-mode: overlay;
+        }
+        
+        .pack-label {
+            margin-top: 10px;
+            background: #fff;
+            color: #333;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        /* --- パック開封アニメーション --- */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        @keyframes holoGradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .shake-animation {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both infinite;
+        }
+
+        /* --- カード（3Dフリップ） --- */
+        .card-scene {
+            width: var(--card-width);
+            height: var(--card-height);
+            perspective: 1000px;
+            display: none; /* 初期は非表示 */
+            z-index: 20;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            border-radius: 15px;
+        }
+
+        .card.is-flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            border: 2px solid #d4af37; /* 金色の枠 */
+        }
+
+        /* カード裏面 */
+        .card-back {
+            background: #222;
+            background-image: 
+                radial-gradient(circle at 50% 50%, #444 0%, transparent 50%),
+                linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000),
+                linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000);
+            background-size: 40px 40px;
+            background-position: 0 0, 0 0, 20px 20px;
+            display: flex;
+            flex-direction: column;
+            color: #d4af37;
+        }
+        
+        .card-back::after {
+            content: 'TOUCH';
+            margin-top: 10px;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        /* カード表面（画像） */
+        .card-front {
+            background-color: #fff;
+            transform: rotateY(180deg);
+        }
+
+        .card-front img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* --- エフェクト類 --- */
+        .flash-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 100;
+            transition: opacity 0.1s;
+        }
+
+        /* キラキラパーティクル */
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: radial-gradient(circle, #fff, transparent);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 15;
+            animation: floatUp 2s ease-out forwards;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-200px) scale(0); opacity: 0; }
+        }
+
+        /* コントロールボタン */
+        .controls {
+            margin-top: 30px;
+            z-index: 50;
+            display: none;
+        }
+
+        button {
+            background: #fff;
+            border: none;
+            padding: 10px 30px;
+            font-size: 1.2rem;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: transform 0.1s;
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+
+    </style>
 </head>
 <body>
 
-<div id="loadingScreen">
-    <div class="loader-text">SYSTEM INITIALIZING...</div>
-    <div class="loader-bar"></div>
-</div>
-
-<div id="sideMenu" class="side-menu-overlay" onclick="closeSideMenu(event)">
-    <div class="side-menu-content">
-        <div class="menu-item active" onclick="selectAppMode('tennis')">🎾 TENNIS</div>
-        <div class="menu-item" onclick="selectAppMode('game')">🎮 GAME</div>
-        <div class="menu-item" onclick="showMyPage()">👤 MY PAGE</div>
-    </div>
-</div>
-
-<div class="container">
-    <header class="app-header">
-        <div id="currentUserDisplay" class="user-status-display" onclick="showMyPage()">GUEST</div>
-        <div class="header-btn left" onclick="manualReload()">↻</div>
-        <h1 id="pageTitle">MATCH INPUT</h1>
-        <div class="subtitle">DEEP SPACE INTEGRATED SYSTEM</div>
-        <div class="header-btn right" id="menuToggleBtn" onclick="toggleSideMenu()">≡</div>
-    </header>
-    
-    <!-- TOP SECTION -->
-    <div id="view-top" class="view-section">
-        <div class="section-title">WEATHER FORECAST</div>
-        <div id="weather-forecast" class="weather-container">
-            <div class="weather-card"><div class="spinning">❖</div></div>
-        </div>
-
-        <div class="section-title">COURT NAVIGATION</div>
-        <div class="sector-filter-area" style="text-align:center; margin-bottom:20px;">
-            <select id="mapSectorSelect" class="sector-select" onchange="renderMapInfo(this.value)">
-                <option value="-">SELECT SECTOR</option>
-                <option value="MOGUSA">百草テニスガーデン</option>
-                <option value="NERIMA">練馬ステップイン</option>
-            </select>
-        </div>
-        <div id="mapContainer">
-            <div class="empty-map-state">
-                <div class="spinning" style="display:inline-block; margin-bottom:10px;">❖</div><br>
-                WAITING FOR NAVI INPUT...
-            </div>
-        </div>
-    </div>
-
-    <!-- MY PAGE SECTION -->
-    <div id="view-mypage" class="view-section">
-        <div id="myPageContent"></div>
-        <input type="file" id="avatarInput" hidden accept="image/*" onchange="handleAvatarUpload(this)">
-    </div>
-
-    <!-- MATCH INPUT SECTION -->
-    <div id="view-match" class="view-section active">
-        <div class="input-header-area">
-            <div id="matchDate"></div>
-            <select id="courtSelect" onchange="saveState()" disabled>
-                <option value="-">-</option>
-                <option value="練馬ステップイン">練馬ステップイン</option>
-                <option value="百草テニスガーデン">百草テニスガーデン</option>
-                <option value="モリパーク テニスガーデン">モリパーク テニスガーデン</option>
-                <option value="白子町">白子町</option>
-            </select>
-            <div class="header-ctrl-area">
-                 <button id="editBtn" class="btn-ctrl" onclick="toggleEditMode()">EDIT</button>
-                 <button id="resetBtn" class="btn-ctrl" onclick="secureReset()" disabled>RESET</button>
+    <div id="game-stage">
+        <!-- パック -->
+        <div class="pack-container" id="pack" onclick="openPack()">
+            <div class="pack">
+                <div class="pack-title">PREMIUM<br>PACK</div>
+                <div class="pack-label">TAP TO OPEN</div>
             </div>
         </div>
 
-        <div class="round-title">ROUND 01</div>
-        <div class="player-inputs">
-            <div class="input-group"><label>I</label><select id="r1_p1" class="player-select" onchange="updateSchedule('r1')" disabled></select></div>
-            <div class="input-group"><label>II</label><select id="r1_p2" class="player-select" onchange="updateSchedule('r1')" disabled></select></div>
-            <div class="input-group"><label>III</label><select id="r1_p3" class="player-select" onchange="updateSchedule('r1')" disabled></select></div>
-            <div class="input-group"><label>IV</label><select id="r1_p4" class="player-select" onchange="updateSchedule('r1')" disabled></select></div>
-            <div class="input-group"><label>V</label><select id="r1_p5" class="player-select" onchange="updateSchedule('r1')" disabled></select></div>
-        </div>
-        <table class="input-match-table">
-            <thead><tr><th>No.</th><th>PAIR A</th><th>G</th><th></th><th>G</th><th>PAIR B</th><th>REST</th></tr></thead>
-            <tbody id="r1_matchTableBody"></tbody>
-        </table>
-        <div style="text-align: center;" class="ranking-area"><h3>RANKING // 1st Phase</h3></div>
-        <table class="standard-table">
-            <thead><tr><th>#</th><th>NAME</th><th>WIN</th><th>RATE</th><th>G</th></tr></thead>
-            <tbody id="r1_rankingTableBody"></tbody>
-        </table>
-
-        <div class="round-title">ROUND 02</div>
-        <div class="player-inputs">
-            <div class="input-group"><label>I</label><select id="r2_p1" class="player-select" onchange="updateSchedule('r2')" disabled></select></div>
-            <div class="input-group"><label>II</label><select id="r2_p2" class="player-select" onchange="updateSchedule('r2')" disabled></select></div>
-            <div class="input-group"><label>III</label><select id="r2_p3" class="player-select" onchange="updateSchedule('r2')" disabled></select></div>
-            <div class="input-group"><label>IV</label><select id="r2_p4" class="player-select" onchange="updateSchedule('r2')" disabled></select></div>
-            <div class="input-group"><label>V</label><select id="r2_p5" class="player-select" onchange="updateSchedule('r2')" disabled></select></div>
-        </div>
-        <table class="input-match-table">
-            <thead><tr><th>No.</th><th>PAIR A</th><th>G</th><th></th><th>G</th><th>PAIR B</th><th>REST</th></tr></thead>
-            <tbody id="r2_matchTableBody"></tbody>
-        </table>
-        <div style="text-align: center;" class="ranking-area"><h3>RANKING // 2nd Phase</h3></div>
-        <table class="standard-table">
-            <thead><tr><th>#</th><th>NAME</th><th>WIN</th><th>RATE</th><th>G</th></tr></thead>
-            <tbody id="r2_rankingTableBody"></tbody>
-        </table>
-
-        <div style="text-align: center; margin-top:30px;" class="ranking-area"><h3 style="color:#fff;">TOTAL RANKING (TODAY)</h3></div>
-        <table class="standard-table">
-            <thead><tr><th>#</th><th>NAME</th><th>WIN</th><th>RATE</th><th>G</th></tr></thead>
-            <tbody id="total_input_rankingTableBody"></tbody>
-        </table>
-
-        <button id="sendButton" class="btn-send" onclick="sendToSpreadsheet()" disabled>TRANSMIT DATA</button>
-    </div>
-
-    <!-- DASHBOARD SECTION -->
-    <div id="view-dashboard" class="view-section">
-        <div class="section-title">活動状況サマリー</div>
-        <div class="dashboard-grid">
-            <div class="stat-card"><div class="stat-label">開催回数</div><div class="stat-value highlight" id="totalMissions">0</div></div>
-            <div class="stat-card"><div class="stat-label">総ゲーム数</div><div class="stat-value" id="totalGames">0</div></div>
-            <div class="stat-card"><div class="stat-label">平均ゲーム</div><div class="stat-value" id="avgGames">-</div></div>
-            <div class="stat-card"><div class="stat-label">最新MVP</div><div class="stat-value" id="latestMvp">-</div></div>
-        </div>
-        <div class="section-title">勝率分析 (TOP 5)</div>
-        <div class="chart-container">
-            <canvas id="winRateChart"></canvas>
-        </div>
-        <div class="section-title" style="margin-top:40px;">対戦履歴ログ</div>
-        <div id="logsContainer"></div>
-    </div>
-
-    <!-- RANKING SECTION -->
-    <div id="view-ranking" class="view-section">
-        <div class="section-title">通算個人ランキング</div>
-        <div class="sector-filter-area" style="text-align:center; margin-bottom:20px;">
-            <select id="sectorSelect" class="sector-select" onchange="filterRanking(this.value)">
-                <option value="ALL">ALL SECTORS</option>
-                <option value="練馬ステップイン">練馬</option>
-                <option value="百草テニスガーデン">百草</option>
-                <option value="モリパーク テニスガーデン">モリパーク</option>
-                <option value="白子町">白子町</option>
-            </select>
-        </div>
-        <table class="standard-table">
-            <thead><tr><th>順位</th><th>名前</th><th>勝利数</th><th>勝率</th><th>MVP</th></tr></thead>
-            <tbody id="leaderboardBody"></tbody>
-        </table>
-        <div style="margin-top: 40px;">
-            <div class="section-title">最強ペアランキング</div>
-            <table class="standard-table">
-                <thead><tr><th>順位</th><th>ペア</th><th>勝敗</th><th>勝率</th></tr></thead>
-                <tbody id="pairRankingBody"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- SCHEDULE SECTION -->
-    <div id="view-schedule" class="view-section">
-        <div class="section-title">MISSION SCHEDULE</div>
-        <div id="scheduleTabs" class="month-tabs-area"></div>
-        <div id="scheduleList" class="schedule-list"></div>
-    </div>
-
-    <!-- GAME SECTION -->
-    <div id="view-game" class="view-section">
-        <div class="game-hero">
-            <div class="game-tag">DEV PHASE 1</div>
-            <h2>RESOURCE STRATEGY</h2>
-            <p>1v1 TACTICAL CARD GAME</p>
-        </div>
-        <div class="game-grid">
-            <div class="game-card" onclick="openSlotGame()">
-                <div class="game-status live">NEW</div>
-                <div class="game-icon">🎰</div>
-                <div class="game-card-title">SLOT MACHINE</div>
-            </div>
-            <div class="game-card" onclick="openCoinGame()">
-                <div class="game-status live">LIVE</div>
-                <div class="game-icon">🪙</div>
-                <div class="game-card-title">COIN TOSS</div>
+        <!-- カード -->
+        <div class="card-scene" id="cardScene">
+            <div class="card" id="card" onclick="flipCard()">
+                <div class="card-face card-back">
+                    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#d4af37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                </div>
+                <div class="card-face card-front">
+                    <!-- ここに画像が表示されます -->
+                    <img id="cardImage" src="" alt="UR Card">
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- FOOTER NAV -->
-<nav id="bottomNav" class="bottom-nav">
-    <button class="nav-item active" onclick="switchMainView('top')"><span class="nav-icon">🏠</span>TOP</button>
-    <button class="nav-item" onclick="switchMainView('match')"><span class="nav-icon">🎾</span>INPUT</button>
-    <button class="nav-item" onclick="switchMainView('dashboard')"><span class="nav-icon">📈</span>DATA</button>
-    <button class="nav-item" onclick="switchMainView('ranking')"><span class="nav-icon">👑</span>RANK</button>
-    <button class="nav-item" onclick="switchMainView('schedule')"><span class="nav-icon">📅</span>SCHEDULE</button>
-</nav>
-
-<!-- MODALS -->
-<div id="slotGameModal" onclick="closeSlotGame(event)">
-    <div class="modal-content" style="max-width:480px; text-align:center; border-color: #ffd700; background: #111;">
-        <button class="close-btn" onclick="closeSlotGame(event)">×</button>
-        <div class="modal-title" style="color: #ffd700;">CASINO SLOT</div>
-        <div class="slot-payout-table">
-            <span>777: 7777</span> | <span>💎: 1000</span> | <span>🔔: 500</span> | <span>🍇: 300</span> | <span>🍒: 100</span>
+        <!-- コントロール -->
+        <div class="controls" id="controls">
+            <button onclick="resetGame()">もう一度引く</button>
         </div>
-        <div class="slot-frame">
-            <div class="slot-machine-container">
-                <div class="reel-container"><div id="reel1" class="reel">7</div></div>
-                <div class="reel-container"><div id="reel2" class="reel">7</div></div>
-                <div class="reel-container"><div id="reel3" class="reel">7</div></div>
-            </div>
-            <div class="slot-lever-container" onclick="pullSlotLever()">
-                <div class="slot-lever-base"></div>
-                <div class="slot-lever-stick"><div class="slot-lever-knob"></div></div>
-            </div>
-        </div>
-        <div class="stop-btn-area">
-            <button id="stop1" class="btn-stop" onclick="stopReel(0)" disabled>STOP</button>
-            <button id="stop2" class="btn-stop" onclick="stopReel(1)" disabled>STOP</button>
-            <button id="stop3" class="btn-stop" onclick="stopReel(2)" disabled>STOP</button>
-        </div>
-        <div id="slotMessage" style="color:#ffd700;">PULL THE LEVER!</div>
-        <div style="margin-top:15px;">WALLET: <span id="slotWallet" style="color:#ffd700;">0</span></div>
     </div>
-</div>
 
-<div id="loginModal">
-    <div class="modal-content" style="text-align:center; max-width:320px;">
-        <div class="modal-title">ACCESS LOGIN</div>
-        <input type="number" id="loginPassInput" placeholder="PASSCODE">
-        <button class="btn-login" onclick="attemptLogin()" style="width:100%; margin: 15px 0;">AUTHENTICATE</button>
-        <button class="btn-guest" onclick="enableGuestMode()" style="width:100%;">GUEST MODE</button>
-    </div>
-</div>
+    <!-- フラッシュ演出用 -->
+    <div class="flash-overlay" id="flash"></div>
 
-<div id="playerModal" onclick="closeModal(event)">
-    <div class="modal-content">
-        <button class="close-btn" onclick="closeModal(event)">×</button>
-        <div class="modal-title" id="modalPlayerName"></div>
-        <div class="chart-container" style="height:200px;"><canvas id="radarChart"></canvas></div>
-        <div class="chart-container" style="height:150px;"><canvas id="historyChart"></canvas></div>
-    </div>
-</div>
+    <script>
+        // ★ここに画像のパスを設定してください★
+        // 先ほど生成した画像のパスやURLを入れてください。
+        // 同じ画像を複数回入れて確率を変えることもできます。
+        const cardImages = [
+            // 画像1（橋本環奈風）
+            "https://placehold.co/600x800/ff9a9e/FFF?text=UR+Kanna", 
+            // 画像2（浜辺美波風）
+            "https://placehold.co/600x800/a18cd1/FFF?text=UR+Minami", 
+            // 画像3（今田美桜風）
+            "https://placehold.co/600x800/fbc2eb/FFF?text=UR+Mio"
+        ];
 
-<div id="scheduleDetailModal" onclick="closeScheduleModal(event)">
-    <div class="modal-content">
-        <button class="close-btn" onclick="closeScheduleModal(event)">×</button>
-        <div class="detail-header">
-            <div class="detail-date" id="modalScheduleDate"></div>
-        </div>
-        <ul class="detail-list" id="modalScheduleList"></ul>
-    </div>
-</div>
+        /*
+           【使い方】
+           ローカルにある画像を使う場合は、画像をHTMLと同じフォルダに置いて
+           "card1.png", "card2.png" のようにファイル名を書いてください。
+        */
 
-<div id="coinGameModal" onclick="closeCoinGame(event)">
-    <div class="modal-content" style="max-width:300px; text-align:center;">
-        <button class="close-btn" onclick="closeCoinGame(event)">×</button>
-        <div class="modal-title">COIN TOSS</div>
-        <div id="gameCoin" class="coin-large" onclick="playCoinToss()">TAP</div>
-    </div>
-</div>
+        const pack = document.getElementById('pack');
+        const cardScene = document.getElementById('cardScene');
+        const card = document.getElementById('card');
+        const cardImage = document.getElementById('cardImage');
+        const flash = document.getElementById('flash');
+        const controls = document.getElementById('controls');
+        
+        let isOpening = false;
+        let isCardRevealed = false;
 
-<div id="toast"></div>
+        function openPack() {
+            if (isOpening) return;
+            isOpening = true;
 
-<script src="script.js"></script>
+            // 1. 揺れるアニメーション
+            pack.classList.add('shake-animation');
+
+            // 2. 1.5秒後に開封
+            setTimeout(() => {
+                // フラッシュ
+                flash.style.opacity = 1;
+                setTimeout(() => { flash.style.opacity = 0; }, 100);
+
+                // パックを消してカードを出す
+                pack.style.display = 'none';
+                cardScene.style.display = 'block';
+                
+                // 少し遅れてカードをフェードイン
+                setTimeout(() => {
+                    cardScene.style.opacity = 1;
+                    
+                    // カードの画像をランダムに決定
+                    const randomIndex = Math.floor(Math.random() * cardImages.length);
+                    cardImage.src = cardImages[randomIndex];
+                    
+                }, 100);
+
+            }, 1200);
+        }
+
+        function flipCard() {
+            if (!isOpening || isCardRevealed) return;
+            
+            // カードを回転
+            card.classList.add('is-flipped');
+            isCardRevealed = true;
+
+            // キラキラ演出を開始
+            createParticles();
+
+            // リセットボタンを表示
+            setTimeout(() => {
+                controls.style.display = 'block';
+            }, 1000);
+        }
+
+        function createParticles() {
+            const count = 30;
+            const colors = ['#ffd700', '#ffeb3b', '#ffffff', '#e1e1e1'];
+
+            for (let i = 0; i < count; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+                
+                // ランダムな位置と色
+                const x = (Math.random() - 0.5) * 300; // カード周辺
+                const y = (Math.random() - 0.5) * 400;
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                
+                particle.style.left = `calc(50% + ${x}px)`;
+                particle.style.top = `calc(50% + ${y}px)`;
+                particle.style.background = `radial-gradient(circle, ${color}, transparent)`;
+                particle.style.animationDuration = (1 + Math.random()) + 's';
+                
+                document.getElementById('game-stage').appendChild(particle);
+
+                // アニメーション終わったら削除
+                setTimeout(() => {
+                    particle.remove();
+                }, 2000);
+            }
+        }
+
+        function resetGame() {
+            // 状態リセット
+            isOpening = false;
+            isCardRevealed = false;
+            
+            // UIリセット
+            controls.style.display = 'none';
+            cardScene.style.opacity = 0;
+            cardScene.style.display = 'none';
+            card.classList.remove('is-flipped');
+            
+            pack.style.display = 'flex';
+            pack.classList.remove('shake-animation');
+        }
+    </script>
 </body>
 </html>
