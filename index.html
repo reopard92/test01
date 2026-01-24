@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CODE NAME: 49B</title>
+    <title>CODE NAME: 49C</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -43,13 +43,8 @@
     <!-- TOP SECTION -->
     <div id="view-top" class="view-section">
         <div class="section-title">WEATHER FORECAST</div>
-        <!-- CSSで高さを確保するためのプレースホルダー（empty-slot）を含む -->
         <div id="weather-forecast" class="weather-container">
             <div class="weather-card"><div class="spinning">❖</div></div>
-            <div class="weather-card empty-slot"></div>
-            <div class="weather-card empty-slot"></div>
-            <div class="weather-card empty-slot"></div>
-            <div class="weather-card empty-slot"></div>
         </div>
 
         <div class="section-title">COURT NAVIGATION</div>
@@ -62,7 +57,6 @@
         </div>
         <div id="mapContainer">
             <div class="empty-map-state">
-                <div class="spinning" style="display:inline-block; margin-bottom:10px;">❖</div><br>
                 WAITING FOR NAVI INPUT...
             </div>
         </div>
@@ -70,9 +64,7 @@
 
     <!-- MY PAGE SECTION -->
     <div id="view-mypage" class="view-section">
-        <div id="myPageContent">
-            <!-- Content injected by JS -->
-        </div>
+        <div id="myPageContent"></div>
         <input type="file" id="avatarInput" hidden accept="image/*" onchange="handleAvatarUpload(this)">
     </div>
 
@@ -105,11 +97,6 @@
             <thead><tr><th>No.</th><th>PAIR A</th><th>G</th><th></th><th>G</th><th>PAIR B</th><th>REST</th></tr></thead>
             <tbody id="r1_matchTableBody"></tbody>
         </table>
-        <div style="text-align: center;" class="ranking-area"><h3>RANKING // 1st Phase</h3></div>
-        <table class="standard-table">
-            <thead><tr><th>#</th><th>NAME</th><th>WIN</th><th>RATE</th><th>G</th></tr></thead>
-            <tbody id="r1_rankingTableBody"></tbody>
-        </table>
 
         <div class="round-title">ROUND 02</div>
         <div class="player-inputs">
@@ -123,17 +110,6 @@
             <thead><tr><th>No.</th><th>PAIR A</th><th>G</th><th></th><th>G</th><th>PAIR B</th><th>REST</th></tr></thead>
             <tbody id="r2_matchTableBody"></tbody>
         </table>
-        <div style="text-align: center;" class="ranking-area"><h3>RANKING // 2nd Phase</h3></div>
-        <table class="standard-table">
-            <thead><tr><th>#</th><th>NAME</th><th>WIN</th><th>RATE</th><th>G</th></tr></thead>
-            <tbody id="r2_rankingTableBody"></tbody>
-        </table>
-
-        <div style="text-align: center; margin-top:30px;" class="ranking-area"><h3 style="color:#fff;">TOTAL RANKING (TODAY)</h3></div>
-        <table class="standard-table">
-            <thead><tr><th>#</th><th>NAME</th><th>WIN</th><th>RATE</th><th>G</th></tr></thead>
-            <tbody id="total_input_rankingTableBody"></tbody>
-        </table>
 
         <button id="sendButton" class="btn-send" onclick="sendToSpreadsheet()" disabled>TRANSMIT DATA</button>
     </div>
@@ -145,82 +121,38 @@
             <div class="stat-card"><div class="stat-label">開催回数</div><div class="stat-value highlight" id="totalMissions">0</div></div>
             <div class="stat-card"><div class="stat-label">総ゲーム数</div><div class="stat-value" id="totalGames">0</div></div>
             <div class="stat-card"><div class="stat-label">平均ゲーム</div><div class="stat-value" id="avgGames">-</div></div>
-            <div class="stat-card"><div class="stat-label">最新MVP</div><div class="stat-value" id="latestMvp">-</div></div>
         </div>
-        <div class="section-title">勝率分析 (TOP 5)</div>
         <div class="chart-container">
             <canvas id="winRateChart"></canvas>
         </div>
-        <div class="section-title" style="margin-top:40px;">対戦履歴ログ</div>
         <div id="logsContainer"></div>
     </div>
 
     <!-- RANKING SECTION -->
     <div id="view-ranking" class="view-section">
         <div class="section-title">通算個人ランキング</div>
-        <div class="sector-filter-area" style="text-align:center; margin-bottom:20px;">
-            <select id="sectorSelect" class="sector-select" onchange="filterRanking(this.value)">
-                <option value="ALL">ALL SECTORS</option>
-                <option value="練馬ステップイン">練馬</option>
-                <option value="百草テニスガーデン">百草</option>
-                <option value="モリパーク テニスガーデン">モリパーク</option>
-                <option value="白子町">白子町</option>
-            </select>
-        </div>
-        <div style="text-align:center; font-size:0.7rem; color:#888; margin-bottom:10px;">行をタップして詳細を表示</div>
-        <table>
+        <table class="standard-table">
             <thead><tr><th>順位</th><th>名前</th><th>勝利数</th><th>勝率</th><th>MVP</th></tr></thead>
             <tbody id="leaderboardBody"></tbody>
         </table>
-        <div class="medal-legend">
-            <span>👑 最高勝率</span> <span>🔥 勝率70%↑</span> <span>💪🏼 最多試合</span> <span>⭐ MVP</span><br>
-            <span>🎯 完封最多</span> <span>❤️‍🔥 接戦勝率No.1</span>
-        </div>
-        <div class="rank-legend">
-            <span>🌑 候補生 (0~)</span> <span>🛸 パイロット (100~)</span> <span>🛰️ 士官 (300~)</span><br>
-            <span>🚀 指揮官 (600~)</span> <span>🪐 艦長 (1000~)</span> <span>🌌 提督 (2000~)</span>
-        </div>
-        <div style="margin-top: 40px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
-            <div class="section-title">最強ペアランキング</div>
-            <div style="text-align:center; font-size:0.7rem; color:#666; margin-bottom:10px;">※2試合以上組んだペアのみ対象</div>
-            <table class="standard-table">
-                <thead><tr><th>順位</th><th>ペア</th><th>勝敗</th><th>勝率</th></tr></thead>
-                <tbody id="pairRankingBody"></tbody>
-            </table>
-        </div>
     </div>
 
     <!-- SCHEDULE SECTION -->
     <div id="view-schedule" class="view-section">
         <div class="section-title">MISSION SCHEDULE</div>
-        <div style="text-align:center; margin: 15px 0 25px 0;">
-            <a href="https://liff.line.me/2008858372-NgwrDQlQ" target="_blank" style="color:#00ffff; text-decoration:none; border-bottom:1px solid #00ffff; padding-bottom:3px; font-size:0.9rem; letter-spacing:1px;">日程調整記入はこちらから ↗</a>
-        </div>
-        <div id="scheduleTabs" class="month-tabs-area"></div>
-        <div id="scheduleList" class="schedule-list">
-            <!-- CSSで高さを確保するためのプレースホルダー -->
-            <div style="padding:20px; text-align:center; color:#888;">LOADING DATA...</div>
-        </div>
+        <div id="scheduleList" class="schedule-list"></div>
     </div>
 
     <!-- GAME SECTION -->
     <div id="view-game" class="view-section">
         <div class="game-hero">
             <div class="game-tag">DEV PHASE 1</div>
-            <h2>RESOURCE STRATEGY<br>CARD BATTLE</h2>
+            <h2>RESOURCE STRATEGY</h2>
             <p>1v1 TACTICAL CARD GAME</p>
-            <button class="btn-hero" onclick="window.location.href='https://reopard92.github.io/game/'">PLAY NOW</button>
         </div>
 
         <div class="section-title">MINI GAMES & TOOLS</div>
         <div class="game-grid">
-            <div class="game-card" onclick="window.location.href='https://reopard92.github.io/game/'">
-                <div class="game-status live">BETA</div>
-                <div class="game-icon">⚔️</div>
-                <div class="game-card-title">CARD BATTLE</div>
-            </div>
-
-            <!-- スロットゲーム -->
             <div class="game-card" onclick="openSlotGame()">
                 <div class="game-status live">NEW</div>
                 <div class="game-icon">🎰</div>
@@ -247,26 +179,36 @@
 </nav>
 
 <!-- MODALS -->
-<div id="playerModal" onclick="closeModal(event)">
-    <div class="modal-content">
-        <button class="close-btn" onclick="closeModal(event)">×</button>
-        <div class="modal-title" id="modalPlayerName"></div>
-        <div id="rankInfoArea" class="rank-info-area"></div>
-        <div class="modal-medals" id="modalMedals"></div>
-        <div class="section-title" style="font-size:0.9rem;">能力チャート</div>
-        <div class="chart-container" style="height:200px; margin-bottom:15px;">
-            <canvas id="radarChart"></canvas>
+<div id="slotGameModal" onclick="closeSlotGame(event)">
+    <div class="modal-content" style="max-width:480px; text-align:center; border-color: #ffd700; background: #111;">
+        <button class="close-btn" onclick="closeSlotGame(event)">×</button>
+        <div class="modal-title" style="color: #ffd700;">CASINO SLOT</div>
+        
+        <div class="slot-payout-table">
+            <span>777: 7777</span> | <span>💎: 1000</span> | <span>🔔: 500</span> | <span>🍇: 300</span> | <span>🍒: 100</span>
         </div>
-        <div class="section-title" style="font-size:0.9rem;">勝率推移</div>
-        <div class="chart-container" style="height:150px; margin-bottom:0;">
-            <canvas id="historyChart"></canvas>
-        </div>
-    </div>
-</div>
 
-<div id="videoModal" onclick="closeVideoModal(event)">
-    <div class="video-container">
-        <div id="videoPlayer"></div>
+        <div class="slot-frame">
+            <div class="slot-machine-container">
+                <div class="reel-container"><div id="reel1" class="reel">7</div></div>
+                <div class="reel-container"><div id="reel2" class="reel">7</div></div>
+                <div class="reel-container"><div id="reel3" class="reel">7</div></div>
+            </div>
+            
+            <div class="slot-lever-container" onclick="pullSlotLever()">
+                <div class="slot-lever-base"></div>
+                <div class="slot-lever-stick"><div class="slot-lever-knob"></div></div>
+            </div>
+        </div>
+
+        <div style="display:flex; justify-content:center; gap:10px; margin-bottom:20px;">
+            <button id="stop1" class="btn-ctrl" onclick="stopReel(0)" disabled>STOP</button>
+            <button id="stop2" class="btn-ctrl" onclick="stopReel(1)" disabled>STOP</button>
+            <button id="stop3" class="btn-ctrl" onclick="stopReel(2)" disabled>STOP</button>
+        </div>
+
+        <div id="slotMessage" style="color:#ffd700; font-weight:bold;">PULL THE LEVER!</div>
+        <div style="margin-top:15px;">WALLET: <span id="slotWallet" style="color:#ffd700;">0</span></div>
     </div>
 </div>
 
@@ -274,91 +216,15 @@
     <div class="modal-content" style="max-width:300px; text-align:center;">
         <button class="close-btn" onclick="closeCoinGame(event)">×</button>
         <div class="modal-title">COIN TOSS</div>
-        <div class="coin-game-container">
-            <div id="gameCoin" class="coin-large" onclick="playCoinToss()">TAP</div>
-            <div style="font-size:0.8rem; color:#aaa;">TAP COIN TO FLIP</div>
-        </div>
-    </div>
-</div>
-
-<!-- スロットゲームモーダル (更新: 配当表シンプル化 & レバー) -->
-<div id="slotGameModal" onclick="closeSlotGame(event)">
-    <div class="modal-content" style="max-width:480px; text-align:center; border-color: #ffd700; background: #111; padding: 20px 10px;">
-        <button class="close-btn" onclick="closeSlotGame(event)">×</button>
-        <div class="modal-title" style="color: #ffd700; margin-bottom: 5px;">CASINO SLOT</div>
-        
-        <!-- 配当表エリア (シンプル版) -->
-        <div class="slot-payout-table">
-            <div class="payout-row"><span class="payout-icon">7</span> <span class="payout-val">7777</span></div>
-            <div class="payout-row"><span class="payout-icon">💎</span> <span class="payout-val">1000</span></div>
-            <div class="payout-row"><span class="payout-icon">🔔</span> <span class="payout-val">500</span></div>
-            <div class="payout-row"><span class="payout-icon">🍇</span> <span class="payout-val">300</span></div>
-            <div class="payout-row"><span class="payout-icon">🍒</span> <span class="payout-val">100</span></div>
-            <div class="payout-row"><span class="payout-icon">Any7</span> <span class="payout-val">20</span></div>
-            <div class="payout-row danger"><span class="payout-icon">💀</span> <span class="payout-val">-1000</span></div>
-        </div>
-
-        <div class="slot-frame">
-            <div class="slot-machine-container">
-                <div class="reel-container">
-                    <div id="reel1" class="reel">7</div>
-                </div>
-                <div class="reel-container">
-                    <div id="reel2" class="reel">7</div>
-                </div>
-                <div class="reel-container">
-                    <div id="reel3" class="reel">7</div>
-                </div>
-            </div>
-            
-            <!-- レバーエリア -->
-            <div class="slot-lever-container" onclick="pullSlotLever()">
-                <div class="slot-lever-base"></div>
-                <div class="slot-lever-stick">
-                    <div class="slot-lever-knob"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="stop-btn-area">
-            <button id="stop1" class="btn-stop" onclick="stopReel(0)" disabled>STOP</button>
-            <button id="stop2" class="btn-stop" onclick="stopReel(1)" disabled>STOP</button>
-            <button id="stop3" class="btn-stop" onclick="stopReel(2)" disabled>STOP</button>
-        </div>
-
-        <div class="slot-info-area">
-            <div style="font-size:0.9rem; color:#aaa; margin-bottom:5px;">BET: <span style="color:#ffd700; font-weight:bold;">20</span> COINS</div>
-            <div id="slotMessage" style="color:#ffd700; min-height:24px; font-weight:bold; margin:5px 0; font-size:1.1rem; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);">PULL THE LEVER!</div>
-        </div>
-        
-        <div style="margin-top:15px; font-size:0.9rem; color:#fff;">
-            WALLET: <span id="slotWallet" style="color:#ffd700;">0</span>
-        </div>
-    </div>
-</div>
-
-
-<div id="scheduleDetailModal" onclick="closeScheduleModal(event)">
-    <div class="modal-content">
-        <button class="close-btn" onclick="closeScheduleModal(event)">×</button>
-        <div class="detail-header">
-            <div class="detail-date" id="modalScheduleDate"></div>
-            <div style="font-size:0.8rem; color:#888;">回答状況</div>
-        </div>
-        <ul class="detail-list" id="modalScheduleList"></ul>
+        <div id="gameCoin" class="coin-large" onclick="playCoinToss()">TAP</div>
     </div>
 </div>
 
 <div id="loginModal">
     <div class="modal-content" style="text-align:center; max-width:320px;">
-        <button class="close-btn" onclick="document.getElementById('loginModal').style.display='none'">×</button>
         <div class="modal-title">ACCESS LOGIN</div>
-        <div style="margin-bottom:20px; color:#aaa; font-size:0.8rem;">ENTER PASSCODE TO IDENTIFY</div>
-        <input type="number" id="loginPassInput" placeholder="PASSCODE">
-        <button class="btn-login" onclick="attemptLogin()">AUTHENTICATE</button>
-        <div style="margin-top:20px;">
-            <button class="btn-guest" onclick="enableGuestMode()">CONTINUE AS GUEST</button>
-        </div>
+        <input type="number" id="loginPassInput" placeholder="PASSCODE" style="width:80%; padding:10px; background:rgba(0,0,0,0.5); border:1px solid #00ffff; color:#fff; font-size:1.2rem; margin-bottom:20px;">
+        <button class="btn-send" onclick="attemptLogin()" style="width:100%; margin:0;">AUTHENTICATE</button>
     </div>
 </div>
 
