@@ -1,410 +1,143 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UR確定！パック開封シミュレーター</title>
-    <style>
-        :root {
-            --card-width: 300px;
-            --card-height: 420px;
-        }
+import React, { useState } from 'react';
+import { RefreshCw, Sparkles } from 'lucide-react';
 
-        body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background-color: #1a1a1a;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            overflow: hidden;
-            perspective: 1000px;
-        }
+const App = () => {
+  const [status, setStatus] = useState('closed'); // 'closed', 'opening', 'open'
+  const [shake, setShake] = useState(false);
 
-        /* --- ゲームコンテナ --- */
-        #game-stage {
-            position: relative;
-            width: 100%;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-        }
+  // パックの画像URL（ここを好きな画像に変更してください）
+  const packImageUrl = "https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=1000&auto=format&fit=crop";
 
-        /* --- パックのデザイン --- */
-        .pack-container {
-            width: 280px;
-            height: 400px;
-            cursor: pointer;
-            position: relative;
-            transition: transform 0.3s ease;
-            z-index: 10;
-        }
+  const handleOpen = () => {
+    if (status !== 'closed') return;
+    
+    setShake(true);
+    setTimeout(() => setShake(false), 500);
 
-        .pack-container:hover {
-            transform: scale(1.05);
-        }
+    setStatus('opening');
+    setTimeout(() => {
+      setStatus('open');
+    }, 800);
+  };
 
-        .pack {
-            width: 100%;
-            height: 100%;
-            /* ★ここにオリジナルのパック画像のURLを設定してください★ */
-            /* 現在はダミー画像を設定しています */
-            background-image: url('パック.png');
-            
-            background-size: cover;
-            background-position: center;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            position: relative;
-            overflow: hidden;
-            border: 2px solid rgba(255,255,255,0.2);
-            
-            /* 画像を使う場合は不要な装飾を削除・調整 */
-            display: flex;
-            justify-content: flex-end; /* ラベルを下に配置など自由に変更可 */
-            align-items: center;
-            flex-direction: column;
-            padding-bottom: 20px;
-            box-sizing: border-box;
-        }
+  const reset = () => {
+    setStatus('closed');
+  };
 
-        /* パックが光るエフェクト（画像の上に重ねる） */
-        .pack::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 50%, rgba(255,255,255,0) 100%);
-            opacity: 0.5;
-            pointer-events: none;
-        }
+  const JaggedEdge = ({ className, style }) => (
+    <svg 
+      viewBox="0 0 200 20" 
+      className={className} 
+      style={style}
+      preserveAspectRatio="none"
+    >
+      <path 
+        d="M0 20 L20 0 L40 20 L60 0 L80 20 L100 0 L120 20 L140 0 L160 20 L180 0 L200 20 Z" 
+        fill="currentColor" 
+      />
+    </svg>
+  );
 
-        /* 画像を使う場合、テキストは邪魔なら削除してもOK */
-        .pack-label {
-            margin-top: auto;
-            margin-bottom: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            color: #fff;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 0.9rem;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            border: 1px solid #d4af37;
-        }
+  return (
+    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 font-sans text-white">
+      <div className="mb-8 text-center">
+        <h1 className="text-2xl font-bold mb-2 flex items-center justify-center gap-2">
+          <Sparkles className="text-yellow-400" />
+          Card Pack Opener
+        </h1>
+        <p className="text-slate-400">パックをタップして開封してください</p>
+      </div>
 
-        /* --- パック開封アニメーション --- */
-        @keyframes shake {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
-            10% { transform: translate(-1px, -2px) rotate(-1deg); }
-            20% { transform: translate(-3px, 0px) rotate(1deg); }
-            30% { transform: translate(3px, 2px) rotate(0deg); }
-            40% { transform: translate(1px, -1px) rotate(1deg); }
-            50% { transform: translate(-1px, 2px) rotate(-1deg); }
-            60% { transform: translate(-3px, 1px) rotate(0deg); }
-            70% { transform: translate(3px, 1px) rotate(-1deg); }
-            80% { transform: translate(-1px, -1px) rotate(1deg); }
-            90% { transform: translate(1px, 2px) rotate(0deg); }
-            100% { transform: translate(1px, -2px) rotate(-1deg); }
-        }
-
-        .shake-animation {
-            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both infinite;
-        }
-
-        /* --- カード（3Dフリップ） --- */
-        .card-scene {
-            width: var(--card-width);
-            height: var(--card-height);
-            perspective: 1000px;
-            display: none; /* 初期は非表示 */
-            z-index: 20;
-            opacity: 0;
-            transition: opacity 0.5s;
-        }
-
-        .card {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            transform-style: preserve-3d;
-            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            cursor: pointer;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            border-radius: 15px;
-        }
-
-        .card.is-flipped {
-            transform: rotateY(180deg);
-        }
-
-        .card-face {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            border-radius: 15px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            border: 2px solid #d4af37; /* 金色の枠 */
-        }
-
-        /* カード裏面 */
-        .card-back {
-            background: #222;
-            background-image: 
-                radial-gradient(circle at 50% 50%, #444 0%, transparent 50%),
-                linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000),
-                linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000);
-            background-size: 40px 40px;
-            background-position: 0 0, 0 0, 20px 20px;
-            display: flex;
-            flex-direction: column;
-            color: #d4af37;
-        }
+      <div className="relative w-64 h-96 flex items-center justify-center">
         
-        .card-back::after {
-            content: 'TOUCH';
-            margin-top: 10px;
-            font-size: 1.2rem;
-            letter-spacing: 2px;
-            animation: pulse 1.5s infinite;
-        }
+        {/* カード（中身） */}
+        <div 
+          className={`absolute w-56 h-80 bg-gradient-to-br from-amber-400 via-orange-500 to-red-600 rounded-xl shadow-2xl border-4 border-white/40 flex items-center justify-center transition-all duration-700 ease-out ${
+            status === 'open' ? 'scale-110 opacity-100 rotate-0' : 'scale-90 opacity-0 rotate-6'
+          }`}
+        >
+          <div className="text-center">
+            <div className="text-5xl mb-4">💎</div>
+            <div className="font-black text-2xl tracking-tighter italic drop-shadow-md">LEGENDARY</div>
+          </div>
+        </div>
 
-        @keyframes pulse {
-            0% { opacity: 0.5; }
-            50% { opacity: 1; }
-            100% { opacity: 0.5; }
-        }
-
-        /* カード表面（画像） */
-        .card-front {
-            background-color: #fff;
-            transform: rotateY(180deg);
-        }
-
-        .card-front img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        /* --- エフェクト類 --- */
-        .flash-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: white;
-            opacity: 0;
-            pointer-events: none;
-            z-index: 100;
-            transition: opacity 0.1s;
-        }
-
-        /* キラキラパーティクル */
-        .particle {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background: radial-gradient(circle, #fff, transparent);
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 15;
-            animation: floatUp 2s ease-out forwards;
-        }
-
-        @keyframes floatUp {
-            0% { transform: translateY(0) scale(1); opacity: 1; }
-            100% { transform: translateY(-200px) scale(0); opacity: 0; }
-        }
-
-        /* コントロールボタン */
-        .controls {
-            margin-top: 30px;
-            z-index: 50;
-            display: none;
-        }
-
-        button {
-            background: #fff;
-            border: none;
-            padding: 10px 30px;
-            font-size: 1.2rem;
-            border-radius: 30px;
-            cursor: pointer;
-            font-weight: bold;
-            color: #333;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            transition: transform 0.1s;
-        }
-        button:active {
-            transform: scale(0.95);
-        }
-
-    </style>
-</head>
-<body>
-
-    <div id="game-stage">
-        <!-- パック -->
-        <div class="pack-container" id="pack" onclick="openPack()">
-            <div class="pack">
-                <!-- パック画像が背景に設定されています。文字が不要な場合は削除してください -->
-                <div class="pack-label">TAP TO OPEN</div>
+        {/* パック全体コンテナ */}
+        <div 
+          onClick={handleOpen}
+          className={`absolute inset-0 cursor-pointer transition-transform duration-300 ${shake ? 'animate-bounce' : ''} ${
+            status !== 'closed' ? 'pointer-events-none' : ''
+          }`}
+        >
+          {/* 下部パーツ (3/4) */}
+          <div 
+            className={`absolute bottom-0 left-0 right-0 h-3/4 rounded-b-2xl border-x-4 border-b-4 border-black/20 shadow-xl overflow-hidden transition-all duration-500 ${
+              status === 'open' ? 'opacity-0 translate-y-20' : 'opacity-100'
+            }`}
+            style={{
+              backgroundImage: `url(${packImageUrl})`,
+              backgroundSize: '100% 133.33%', // 全体の高さに合わせて調整
+              backgroundPosition: 'bottom center'
+            }}
+          >
+            {/* 画像の上のオーバーレイ */}
+            <div className="absolute inset-0 bg-black/10" />
+            
+            {/* 切り口のギザギザ（下）- 背景と同じ色にすると馴染みます */}
+            <JaggedEdge className="absolute top-0 left-0 w-full h-4 text-slate-900/40 -translate-y-[1px]" />
+            
+            {/* ロゴなどのオーバーレイテキスト */}
+            <div className="absolute bottom-10 left-0 right-0 text-center pointer-events-none">
+                <div className="text-white font-black text-2xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] italic">BOOSTER</div>
+                <div className="text-white/80 text-xs font-bold tracking-[0.2em]">PREMIUM EDITION</div>
             </div>
+          </div>
+
+          {/* 上部パーツ (1/4) */}
+          <div 
+            className={`absolute top-0 left-0 right-0 h-1/4 rounded-t-2xl border-x-4 border-t-4 border-black/20 shadow-lg transition-all duration-700 cubic-bezier(0.23, 1, 0.32, 1) ${
+              status === 'opening' || status === 'open' 
+                ? '-translate-y-64 -translate-x-16 -rotate-45 opacity-0' 
+                : 'translate-y-0 opacity-100'
+            }`}
+            style={{
+              backgroundImage: `url(${packImageUrl})`,
+              backgroundSize: '100% 400%', // 全体の高さの4倍
+              backgroundPosition: 'top center'
+            }}
+          >
+            {/* 画像の上のオーバーレイ */}
+            <div className="absolute inset-0 bg-black/10" />
+            
+            {/* 切り口のギザギザ（上） */}
+            <JaggedEdge className="absolute bottom-0 left-0 w-full h-4 text-slate-900/40 rotate-180 translate-y-[1px]" />
+          </div>
         </div>
 
-        <!-- カード -->
-        <div class="card-scene" id="cardScene">
-            <div class="card" id="card" onclick="flipCard()">
-                <div class="card-face card-back">
-                    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#d4af37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                    </svg>
-                </div>
-                <div class="card-face card-front">
-                    <!-- ここに画像が表示されます -->
-                    <img id="cardImage" src="" alt="UR Card">
-                </div>
-            </div>
-        </div>
+      </div>
 
-        <!-- コントロール -->
-        <div class="controls" id="controls">
-            <button onclick="resetGame()">もう一度引く</button>
-        </div>
+      {status === 'open' && (
+        <button
+          onClick={reset}
+          className="mt-12 flex items-center gap-2 bg-white/10 hover:bg-white/20 px-6 py-2 rounded-full transition-colors text-sm font-medium border border-white/10"
+        >
+          <RefreshCw size={16} />
+          リセット
+        </button>
+      )}
+
+      <style>{`
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          25% { transform: translateY(-8px) rotate(-0.5deg); }
+          75% { transform: translateY(8px) rotate(0.5deg); }
+        }
+        .animate-bounce {
+          animation: bounce 0.15s ease-in-out infinite;
+        }
+      `}</style>
     </div>
+  );
+};
 
-    <!-- フラッシュ演出用 -->
-    <div class="flash-overlay" id="flash"></div>
-
-    <script>
-        // ★ここに画像のパスを設定してください★
-        // 先ほど生成した画像のパスやURLを入れてください。
-        // 同じ画像を複数回入れて確率を変えることもできます。
-        const cardImages = [
-            // 画像1（橋本環奈風）
-            "橋本環奈.png", 
-            // 画像2（浜辺美波風）
-            "浜辺美波.png", 
-            // 画像3（今田美桜風）
-            "今田美桜.png"
-        ];
-
-        /*
-           【使い方】
-           ローカルにある画像を使う場合は、画像をHTMLと同じフォルダに置いて
-           "card1.png", "card2.png" のようにファイル名を書いてください。
-        */
-
-        const pack = document.getElementById('pack');
-        const cardScene = document.getElementById('cardScene');
-        const card = document.getElementById('card');
-        const cardImage = document.getElementById('cardImage');
-        const flash = document.getElementById('flash');
-        const controls = document.getElementById('controls');
-        
-        let isOpening = false;
-        let isCardRevealed = false;
-
-        function openPack() {
-            if (isOpening) return;
-            isOpening = true;
-
-            // 1. 揺れるアニメーション
-            pack.classList.add('shake-animation');
-
-            // 2. 1.5秒後に開封
-            setTimeout(() => {
-                // フラッシュ
-                flash.style.opacity = 1;
-                setTimeout(() => { flash.style.opacity = 0; }, 100);
-
-                // パックを消してカードを出す
-                pack.style.display = 'none';
-                cardScene.style.display = 'block';
-                
-                // 少し遅れてカードをフェードイン
-                setTimeout(() => {
-                    cardScene.style.opacity = 1;
-                    
-                    // カードの画像をランダムに決定
-                    const randomIndex = Math.floor(Math.random() * cardImages.length);
-                    cardImage.src = cardImages[randomIndex];
-                    
-                }, 100);
-
-            }, 1200);
-        }
-
-        function flipCard() {
-            if (!isOpening || isCardRevealed) return;
-            
-            // カードを回転
-            card.classList.add('is-flipped');
-            isCardRevealed = true;
-
-            // キラキラ演出を開始
-            createParticles();
-
-            // リセットボタンを表示
-            setTimeout(() => {
-                controls.style.display = 'block';
-            }, 1000);
-        }
-
-        function createParticles() {
-            const count = 30;
-            const colors = ['#ffd700', '#ffeb3b', '#ffffff', '#e1e1e1'];
-
-            for (let i = 0; i < count; i++) {
-                const particle = document.createElement('div');
-                particle.classList.add('particle');
-                
-                // ランダムな位置と色
-                const x = (Math.random() - 0.5) * 300; // カード周辺
-                const y = (Math.random() - 0.5) * 400;
-                const color = colors[Math.floor(Math.random() * colors.length)];
-                
-                particle.style.left = `calc(50% + ${x}px)`;
-                particle.style.top = `calc(50% + ${y}px)`;
-                particle.style.background = `radial-gradient(circle, ${color}, transparent)`;
-                particle.style.animationDuration = (1 + Math.random()) + 's';
-                
-                document.getElementById('game-stage').appendChild(particle);
-
-                // アニメーション終わったら削除
-                setTimeout(() => {
-                    particle.remove();
-                }, 2000);
-            }
-        }
-
-        function resetGame() {
-            // 状態リセット
-            isOpening = false;
-            isCardRevealed = false;
-            
-            // UIリセット
-            controls.style.display = 'none';
-            cardScene.style.opacity = 0;
-            cardScene.style.display = 'none';
-            card.classList.remove('is-flipped');
-            
-            pack.style.display = 'flex';
-            pack.classList.remove('shake-animation');
-        }
-    </script>
-</body>
-</html>
-
+export default App;
